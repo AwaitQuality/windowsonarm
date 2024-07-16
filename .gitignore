@@ -40,3 +40,4 @@ next-env.d.ts
 .dev.vars
 
 .env
+.idea
