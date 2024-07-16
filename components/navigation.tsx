@@ -7,7 +7,6 @@ import {
   GoogleOneTap,
   SignedIn,
   SignedOut,
-  SignInButton,
   UserButton,
 } from "@clerk/nextjs";
 import Link from "next/link";
@@ -35,14 +34,12 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
           <Button disabled>Loading...</Button>
         </ClerkLoading>
         <SignedIn>
-          {/* Mount the UserButton component */}
           <UserButton />
         </SignedIn>
         <SignedOut>
-          {/* Signed out users get sign in button */}
-          <Button>
-            <SignInButton />
-          </Button>
+          <Link href="/auth/signin">
+            <Button>Sign in</Button>
+          </Link>
         </SignedOut>
       </div>
       <GoogleOneTap />
