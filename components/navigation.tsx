@@ -10,6 +10,7 @@ import {
   SignInButton,
   UserButton,
 } from "@clerk/nextjs";
+import Link from "next/link";
 
 interface NavigationProps extends React.HTMLAttributes<HTMLDivElement> {}
 
@@ -24,9 +25,11 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
         {...props}
       >
         <div>
-          <Button icon={<Github size={20} color={"#ADADAD"} />}>
-            Contribute on Github
-          </Button>
+          <Link href="https://github.com/AwaitQuality/windowsonarm">
+            <Button icon={<Github size={20} color={"#ADADAD"} />}>
+              Contribute on Github
+            </Button>
+          </Link>
         </div>
         <ClerkLoading>
           <Button disabled>Loading...</Button>
