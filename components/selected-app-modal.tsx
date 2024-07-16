@@ -216,14 +216,19 @@ const SelectedAppModal = ({
                 </Link>
               </InfoLabel>
             )}
-            <InfoLabel info={<>This feature is coming soon</>}>
-              <Button
-                className={"w-11/12 md:w-auto"}
-                disabled
-                icon={<ArrowReplyRegular fontSize={16} />}
+            <InfoLabel
+              info={<>We&apos;re working on a on-site contributions </>}
+            >
+              <Link
+                href={"https://github.com/AwaitQuality/windowsonarm/issues"}
               >
-                Report issue
-              </Button>
+                <Button
+                  className={"w-11/12 md:w-auto"}
+                  icon={<ArrowReplyRegular fontSize={16} />}
+                >
+                  Report issue
+                </Button>
+              </Link>
             </InfoLabel>
             <ShareButton />
             <Button
