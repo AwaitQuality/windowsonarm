@@ -217,7 +217,13 @@ const SelectedAppModal = ({
               </InfoLabel>
             )}
             <InfoLabel
-              info={<>We&apos;re working on a on-site contributions </>}
+              info={
+                <>
+                  We&apos;re working on a on-site report feature, but until
+                  it&apos;s ready, we would suggest using Github issues for this
+                  purpose.
+                </>
+              }
             >
               <Link
                 href={"https://github.com/AwaitQuality/windowsonarm/issues"}
