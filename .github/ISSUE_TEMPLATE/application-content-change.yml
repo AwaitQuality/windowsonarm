@@ -9,7 +9,6 @@ body:
     attributes:
       value: |
         If you don't want to change the data of a field, leave it blank.
-
         I want you to update, content of application [ NAME ]
 
   - type: input
@@ -17,7 +16,7 @@ body:
     attributes:
       label: Application Name
       description: Enter the name of the application
-      placeholder: ex. My Application
+      placeholder: ex. Google Chrome
     validations:
       required: true
 
@@ -28,16 +27,16 @@ body:
       description: Enter the category ID of the application
       placeholder: ex. 123
     validations:
-      required: true
+      required: false
 
   - type: input
     id: company
     attributes:
       label: Company
       description: Enter the company name
-      placeholder: ex. My Company
+      placeholder: ex. Google
     validations:
-      required: true
+      required: false
 
   - type: input
     id: app-url
@@ -46,7 +45,7 @@ body:
       description: Enter the URL of the application
       placeholder: ex. https://example.com
     validations:
-      required: true
+      required: false
 
   - type: input
     id: icon-url
@@ -55,7 +54,7 @@ body:
       description: Enter the URL of the application icon
       placeholder: ex. https://example.com/icon.png
     validations:
-      required: true
+      required: false
 
   - type: input
     id: tags
@@ -73,4 +72,14 @@ body:
       description: Enter a description for the application
       placeholder: ex. This application is used for...
     validations:
-      required: true
+      required: false
+
+  - type: textarea
+    id: tell-us
+    attributes:
+      label: Tell us more
+      description: ""
+      placeholder: ""
+      value: ""
+    validations:
+      required: false
