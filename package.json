@@ -24,6 +24,7 @@
     "@fluentui/react-components": "^9.54.2",
     "@fluentui/react-icons": "^2.0.247",
     "@fluentui/react-table": "^9.15.8",
+    "@giscus/react": "^3.0.0",
     "@haverstack/axios-fetch-adapter": "^0.12.0",
     "@hookform/resolvers": "^3.6.0",
     "@neondatabase/serverless": "^0.9.4",

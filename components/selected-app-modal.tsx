@@ -20,11 +20,12 @@ import {
 import dayjs from "dayjs";
 import { ArrowReplyRegular, LinkRegular } from "@fluentui/react-icons";
 import Modal from "react-modal";
-import React from "react";
+import React, { useEffect } from "react";
 import ShareButton from "@/components/share-button";
 import Link from "next/link";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import Markdown from "react-markdown";
+import Giscus from "@giscus/react";
 
 interface SelectedAppModalProps {
   selectedApp: FullPost | null;
@@ -80,6 +81,19 @@ const SelectedAppModal = ({
   const [expanded, setExpanded] = React.useState(false);
 
   const classes = useStyles();
+
+  useEffect(() => {
+    if (open && selectedApp) {
+      document.title = `Is ${selectedApp.title} ARM ready? - Windows on ARM`;
+    } else {
+      document.title = "Windows on ARM | App Compatibility List";
+    }
+
+    // Cleanup function to reset the title when component unmounts
+    return () => {
+      document.title = "Windows on ARM | App Compatibility List";
+    };
+  }, [open, selectedApp]);
 
   if (!selectedApp) return null;
 
@@ -181,6 +195,22 @@ const SelectedAppModal = ({
               ))}
             </div>
           )}
+
+          <Giscus
+            repo="AwaitQuality/windowsonarm"
+            repoId="R_kgDOMUHZaw"
+            category="General"
+            categoryId="DIC_kwDOMUHZa84Cg2tJ"
+            mapping="specific"
+            term={selectedApp.title}
+            strict="0"
+            reactionsEnabled="0"
+            emitMetadata="0"
+            inputPosition="bottom"
+            theme="preferred_color_scheme"
+            lang="en"
+            loading={"lazy"}
+          />
 
           <CardFooter className={classes.footer}>
             {selectedApp.app_url && (

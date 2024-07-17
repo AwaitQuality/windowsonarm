@@ -77,6 +77,7 @@ export default function Home() {
   return (
     <Container>
       <Navigation className={"pt-10"} />
+
       <div className="flex flex-col items-center pt-5" id={"#app"}>
         <SelectedAppModal
           selectedApp={selectedApp}
