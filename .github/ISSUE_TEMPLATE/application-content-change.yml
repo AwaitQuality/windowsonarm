@@ -3,14 +3,7 @@ description: Is your data different from ours? If so, please describe the differ
 title: "Content Change To Application [ NAME ] needed."
 labels: ["invalid"]
 assignees: []
-
 body:
-  - type: markdown
-    attributes:
-      value: |
-        If you don't want to change the data of a field, leave it blank.
-        I want you to update, content of application [ NAME ]
-
   - type: input
     id: application-name
     attributes:
@@ -23,9 +16,9 @@ body:
   - type: input
     id: category-id
     attributes:
-      label: Category ID
+      label: Category Name
       description: Enter the category ID of the application
-      placeholder: ex. 123
+      placeholder: ex. development
     validations:
       required: false
 
@@ -43,6 +36,15 @@ body:
     attributes:
       label: App URL
       description: Enter the URL of the application
+      placeholder: ex. https://example.com
+    validations:
+      required: false
+
+  - type: input
+    id: comm-url
+    attributes:
+      label: Community URL
+      description: Enter the URL of the community application
       placeholder: ex. https://example.com
     validations:
       required: false
@@ -78,8 +80,7 @@ body:
     id: tell-us
     attributes:
       label: Tell us more
-      description: ""
-      placeholder: ""
-      value: ""
+      description: Provide additional information if needed
+      placeholder: ex. Any additional details you'd like to share
     validations:
       required: false
