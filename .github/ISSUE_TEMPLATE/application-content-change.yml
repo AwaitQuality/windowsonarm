@@ -1,5 +1,5 @@
 name: Application content change
-description: Is your data different from ours? If so, please describe the differences so we can update it accordingly.
+description: Do you believe there is a mistake with the information about an application? If you do, please submit the changes below. Fill out just the fields you believe we should change with the new data.
 title: "Content Change To Application [ NAME ] needed."
 labels: ["incorrect-app-info"]
 assignees: []
