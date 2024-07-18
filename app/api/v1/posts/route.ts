@@ -5,7 +5,7 @@ import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { postRequest } from "@/components/contribute-button";
 import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
-import { auth, clerkClient, getAuth, User } from "@clerk/nextjs/server";
+import { auth, clerkClient, getAuth } from "@clerk/nextjs/server";
 
 export const runtime = "edge";
 
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
       .filter((userId) => userId) as string[];
 
     const users = await clerkClient().users.getUserList({
-      userId: userIds,
+      externalId: userIds,
       limit: 100,
     });
 
