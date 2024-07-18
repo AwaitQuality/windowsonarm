@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Disallow crawling of authentication pages
+Disallow: /auth/
+
+# Sitemap location
+Sitemap: https://windowsonarm.org/sitemap.xml
+
+# Crawl-delay directive (optional)
+# Crawl-delay: 10
