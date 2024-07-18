@@ -1,7 +1,7 @@
 name: Application content change
 description: Is your data different from ours? If so, please describe the differences so we can update it accordingly.
 title: "Content Change To Application [ NAME ] needed."
-labels: ["invalid"]
+labels: ["incorrect-app-info"]
 assignees: []
 body:
   - type: input
