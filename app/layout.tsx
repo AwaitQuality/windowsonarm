@@ -4,13 +4,16 @@ import type { Metadata, Viewport } from "next";
 import ClientWrapper from "@/app/layoutclient";
 
 export const metadata: Metadata = {
-  title: "Windows on ARM | App Compatibility List",
+  title: "Windows on ARM | Software Compatibility List",
   description:
-    "A community-driven list of apps and games that work, are emulated or don't work on Windows on ARM",
+    "A community-driven list of software (apps and games) that work, are emulated or don't work on Windows on ARM",
   metadataBase: new URL("https://windowsonarm.org"),
   keywords: [
     "windows",
     "arm",
+    "software",
+    "apps",
+    "games",
     "windows on arm",
     "app compatibility",
     "windows 10",
