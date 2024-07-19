@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 
     users.data.forEach((user) => {
       postsWithUpvoteStatus.forEach((post) => {
-        if (post.user_id === user.id) {
+        if (post.user_id === user.externalId) {
           post.user = user;
         }
       });
