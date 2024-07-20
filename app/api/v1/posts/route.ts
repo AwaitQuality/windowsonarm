@@ -93,6 +93,7 @@ export async function GET(request: NextRequest) {
 
     const users = await clerkClient().users.getUserList({
       externalId: userIds,
+      userId: userIds,
       limit: 100,
     });
 
