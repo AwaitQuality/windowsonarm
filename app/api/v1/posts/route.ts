@@ -91,8 +91,7 @@ export async function GET(request: NextRequest) {
       .map((post) => post.user_id)
       .filter((userId) => userId) as string[];
 
-    const users = await clerkClient().users.getUserList({
-      externalId: userIds,
+    let users = await clerkClient().users.getUserList({
       userId: userIds,
       limit: 100,
     });
@@ -100,6 +99,19 @@ export async function GET(request: NextRequest) {
     users.data.forEach((user) => {
       postsWithUpvoteStatus.forEach((post) => {
         if (post.user_id === user.id) {
+          post.user = user;
+        }
+      });
+    });
+
+    users = await clerkClient().users.getUserList({
+      externalId: userIds,
+      limit: 100,
+    });
+
+    users.data.forEach((user) => {
+      postsWithUpvoteStatus.forEach((post) => {
+        if (post.user_id === user.externalId) {
           post.user = user;
         }
       });
