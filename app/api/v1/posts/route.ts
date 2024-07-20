@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 
     users.data.forEach((user) => {
       postsWithUpvoteStatus.forEach((post) => {
-        if (post.user_id === user.externalId) {
+        if (post.user_id === user.id) {
           post.user = user;
         }
       });
