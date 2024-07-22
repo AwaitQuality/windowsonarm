@@ -31,7 +31,7 @@ function generateSiteMap(apps: { id: string; updated_at: Date }[]) {
        .map(({ id, updated_at }) => {
          return `
        <url>
-           <loc>${BASE_URL}/app/${id}</loc>
+           <loc>${BASE_URL}/${id}</loc>
            <priority>0.8</priority>
             <changefreq>daily</changefreq>
             <lastmod>${updated_at.toISOString()}</lastmod>
