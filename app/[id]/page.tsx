@@ -3,6 +3,8 @@ import { Metadata } from "next";
 import { getAppById } from "@/lib/api";
 import AppDetails from "./AppDetails";
 
+export const runtime = "edge";
+
 export async function generateMetadata({
   params,
 }: {
