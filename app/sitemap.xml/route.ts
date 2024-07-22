@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import getPrisma from "@/lib/db/prisma";
+import { getRequestContext } from "@cloudflare/next-on-pages";
 
 const BASE_URL = "https://windowsonarm.org";
+
+export const runtime = "edge";
 
 function generateSiteMap(apps: { id: string; updated_at: Date }[]) {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -44,6 +45,10 @@ function generateSiteMap(apps: { id: string; updated_at: Date }[]) {
 
 export async function GET() {
   try {
+    const { env } = getRequestContext();
+
+    const prisma = getPrisma(env.DATABASE_URL);
+
     const apps = await prisma.post.findMany({
       select: { id: true, updated_at: true },
     });

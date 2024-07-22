@@ -1,11 +1,14 @@
-import { PrismaClient } from "@prisma/client";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
-
-const prisma = new PrismaClient();
+import getPrisma from "@/lib/db/prisma";
+import { getRequestContext } from "@cloudflare/next-on-pages";
 
 export async function getAppById(id: string) {
   const userId = auth().userId;
+
+  const { env } = getRequestContext();
+
+  const prisma = getPrisma(env.DATABASE_URL);
 
   try {
     const post = await prisma.post.findUnique({
