@@ -84,6 +84,7 @@ model Post {
   company            String
   user_id            String?
   status             Int
+  status_hint        Int?
   description        String
   tags               String[]
   app_url            String?
