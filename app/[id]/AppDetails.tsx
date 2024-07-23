@@ -68,14 +68,15 @@ export default function AppDetailsContent({ app }: AppDetailsContentProps) {
 
   return (
     <div className="min-h-screen">
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-16 mb-12">
+      <div className="bg-gradient-to-r from-blue-800 to-blue-950 text-white py-16 mb-12">
         <Container>
           <h1 className={`${classes.heroTitle} mb-4`}>
             Is {app.title} ARM ready?
           </h1>
           <h2 className={`${classes.heroSubtitle} mb-6`}>
             <span
-              className={`inline-block px-3 py-1 rounded-full ${getStatusColor(app.statusRel?.text || "")}`}
+              className={`inline-block px-3 py-1 rounded-full`}
+              style={{ backgroundColor: app.statusRel?.color }}
             >
               {app.statusRel?.text}
             </span>
@@ -95,12 +96,20 @@ export default function AppDetailsContent({ app }: AppDetailsContentProps) {
       <Container>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           <div className="lg:col-span-2">
-            <Card className="rounded-lg p-6 mb-8">
+            <Card
+              className="rounded-lg p-6 mb-8"
+              appearance={"filled-alternative"}
+              size="large"
+            >
               <AppDescription description={app.description} />
             </Card>
 
             {app.tags && app.tags.length > 0 && (
-              <Card className="rounded-lg shadow-md p-6 mb-8">
+              <Card
+                className="rounded-lg shadow-md p-6 mb-8"
+                appearance={"filled-alternative"}
+                size="large"
+              >
                 <Subtitle1 className="mb-4">Tags</Subtitle1>
                 <div className="flex flex-wrap gap-2">
                   {app.tags.map((tag) => (
@@ -112,7 +121,11 @@ export default function AppDetailsContent({ app }: AppDetailsContentProps) {
               </Card>
             )}
 
-            <Card className="rounded-lg shadow-md p-6 mb-8">
+            <Card
+              className="rounded-lg shadow-md p-6 mb-8"
+              appearance={"filled-alternative"}
+              size="large"
+            >
               <Subtitle1 className="mb-4">Discussion</Subtitle1>
               <Giscus
                 repo="AwaitQuality/windowsonarm"
@@ -133,7 +146,11 @@ export default function AppDetailsContent({ app }: AppDetailsContentProps) {
           </div>
 
           <div className="lg:col-span-1">
-            <Card className="rounded-lg shadow-md p-6 mb-8">
+            <Card
+              className="rounded-lg shadow-md p-6 mb-8"
+              appearance={"filled-alternative"}
+              size="large"
+            >
               <LargeTitle className="mb-4">App Information</LargeTitle>
               <div className="space-y-4">
                 <div>
@@ -161,7 +178,11 @@ export default function AppDetailsContent({ app }: AppDetailsContentProps) {
               </div>
             </Card>
 
-            <Card className="rounded-lg shadow-md p-6">
+            <Card
+              className="rounded-lg shadow-md p-6"
+              appearance={"filled-alternative"}
+              size="large"
+            >
               <Subtitle1 className="mb-4">Actions</Subtitle1>
               <div className="space-y-4">
                 {app.app_url && (
