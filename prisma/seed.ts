@@ -71,6 +71,7 @@ const posts = Array.from({ length: AMOUNT }).map(() => {
     user_id: null,
     banner_url: null,
     icon_url: null,
+    status_hint: null,
     company: faker.company.name(),
     tags: faker.helpers.uniqueArray(() => faker.lorem.word(), 3),
     // int between 0 and 2, or null

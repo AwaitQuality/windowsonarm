@@ -166,6 +166,9 @@ export async function POST(request: NextRequest) {
         app_url: postRequest.app_url,
         banner_url: postRequest.banner_url,
         icon_url: postRequest.icon_url,
+        status_hint: postRequest.status_hint
+          ? parseInt(postRequest.status_hint)
+          : null,
         status: -1,
         user_id: userId,
       },

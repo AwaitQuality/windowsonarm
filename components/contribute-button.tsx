@@ -21,6 +21,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import FormTagPicker from "@/components/ui/form/form-tag-picker";
 import { useAuth } from "@clerk/nextjs";
+import Link from "next/link";
 
 const formSchema = z.object({
   title: z.string().max(255),
@@ -29,6 +30,7 @@ const formSchema = z.object({
   tags: z.array(z.string()).max(3).optional(),
   app_url: z.string().optional(),
   banner_url: z.string().optional(),
+  status_hint: z.string().optional(),
   icon_url: z.string().optional(),
   categoryId: z.string(),
 });
@@ -40,7 +42,7 @@ interface ContributeButtonProps {
 }
 
 const ContributeButton = ({ query }: ContributeButtonProps) => {
-  const { userId, sessionId } = useAuth();
+  const { userId, sessionId, isSignedIn, isLoaded } = useAuth();
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -71,16 +73,20 @@ const ContributeButton = ({ query }: ContributeButtonProps) => {
 
   return (
     <Dialog open={dialogOpen} onOpenChange={(_, o) => setDialogOpen(o.open)}>
-      <DialogTrigger disableButtonEnhancement>
-        <Button
-          icon={<AddCircleFilled />}
-          disabled={
-            infoIsError || infoIsLoading || infoIsIdle || !userId || !sessionId
-          }
-        >
-          Post application
-        </Button>
-      </DialogTrigger>
+      {infoIsError || infoIsLoading || infoIsIdle || !isLoaded ? (
+        <Button disabled>Loading...</Button>
+      ) : isLoaded && !isSignedIn ? (
+        <Link href={"/auth/signin"}>
+          <Button>Sign in to request an app</Button>
+        </Link>
+      ) : (
+        <DialogTrigger disableButtonEnhancement>
+          <Button icon={<AddCircleFilled />} disabled={!userId || !sessionId}>
+            Request an app
+          </Button>
+        </DialogTrigger>
+      )}
+
       <DialogSurface>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -145,6 +151,18 @@ const ContributeButton = ({ query }: ContributeButtonProps) => {
                   {info?.categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
+                    </option>
+                  ))}
+                </SelectField>
+
+                <SelectField
+                  formControl={form.control}
+                  label={"Status hint"}
+                  name={"status_hint"}
+                >
+                  {info?.status.map((status) => (
+                    <option key={status.id} value={status.id}>
+                      {status.name}
                     </option>
                   ))}
                 </SelectField>

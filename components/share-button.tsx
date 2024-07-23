@@ -26,17 +26,16 @@ import {
 } from "react-share";
 import { ShareRegular } from "@fluentui/react-icons";
 
-interface ShareModalProps {
-  open: boolean;
-  onClose?: () => void;
-}
+interface Props extends React.HTMLAttributes<HTMLButtonElement> {}
 
-const ShareButton = () => {
+const ShareButton = (props: Props) => {
   return (
     <>
       <Dialog>
         <DialogTrigger disableButtonEnhancement>
-          <Button icon={<ShareRegular />}>Share</Button>
+          <Button icon={<ShareRegular />} {...props}>
+            Share
+          </Button>
         </DialogTrigger>
         <DialogSurface>
           <DialogBody>
