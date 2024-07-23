@@ -32,7 +32,7 @@ export default async function AppDetailsPage({
 }) {
   const app = await getAppById(params.id);
 
-  if (!app) return <div>App not found</div>;
+  if (!app) return <div>App not found: {params.id}</div>;
 
   return <AppDetails app={app} />;
 }
