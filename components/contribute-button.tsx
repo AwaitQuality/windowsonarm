@@ -160,6 +160,9 @@ const ContributeButton = ({ query }: ContributeButtonProps) => {
                   formControl={form.control}
                   label={"Status hint"}
                   name={"status_hint"}
+                  description={
+                    "Select a status hint for the application. If you're not sure, select the 'Under review' status and we will test the app for you."
+                  }
                 >
                   <option value={""}>Select a status hint</option>
                   {info?.status.map((status) => (
@@ -176,7 +179,7 @@ const ContributeButton = ({ query }: ContributeButtonProps) => {
                   label={"Description"}
                   name={"description"}
                   description={
-                    "A brief description of the application. MD editing support is coming soon."
+                    "A brief description of the application. Markdown is supported. A rich MD editor is coming soon."
                   }
                 />
               </DialogContent>
