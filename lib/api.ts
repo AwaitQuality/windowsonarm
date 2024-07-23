@@ -41,7 +41,21 @@ export async function getAppById(id: string) {
     };
 
     if (post.user_id) {
-      fullPost.user = await clerkClient().users.getUser(post.user_id);
+      const user = await clerkClient().users.getUserList({
+        userId: [post.user_id],
+      });
+
+      if (user.data.length > 0) {
+        fullPost.user = user.data[0];
+      }
+
+      const externalId = await clerkClient().users.getUserList({
+        externalId: [post.user_id],
+      });
+
+      if (externalId.data.length > 0) {
+        fullPost.user = externalId.data[0];
+      }
     }
 
     return JSON.parse(JSON.stringify(fullPost));
