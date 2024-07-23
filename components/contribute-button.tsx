@@ -148,6 +148,7 @@ const ContributeButton = ({ query }: ContributeButtonProps) => {
                   label={"Category ID"}
                   name={"categoryId"}
                 >
+                  <option value={""}>Select a category</option>
                   {info?.categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
@@ -160,6 +161,7 @@ const ContributeButton = ({ query }: ContributeButtonProps) => {
                   label={"Status hint"}
                   name={"status_hint"}
                 >
+                  <option value={""}>Select a status hint</option>
                   {info?.status.map((status) => (
                     <option key={status.id} value={status.id}>
                       {status.name}
