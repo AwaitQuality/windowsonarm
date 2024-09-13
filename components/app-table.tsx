@@ -16,10 +16,8 @@ import {
   TableRow,
   Toast,
   ToastBody,
-  Toaster,
   ToastIntent,
   ToastTitle,
-  useId,
   useToastController,
 } from "@fluentui/react-components";
 import { AddCircleFilled, DismissRegular } from "@fluentui/react-icons";
@@ -90,8 +88,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
 
   const [optimisticPosts, setOptimisticPosts] = useState<FullPost[]>([]);
 
-  const toasterId = useId("toaster");
-  const { dispatchToast } = useToastController(toasterId);
+  const { dispatchToast } = useToastController("toaster");
 
   const notify = (
     title: string,
@@ -216,8 +213,6 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
 
   return (
     <div className={styles.tableContainer}>
-      <Toaster toasterId={toasterId} />
-
       <Table arial-label="Responsive table">
         <TableHeader>
           <TableRow>

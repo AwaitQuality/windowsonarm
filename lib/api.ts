@@ -3,7 +3,7 @@ import { FullPost } from "@/lib/types/prisma/prisma-types";
 import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
-export async function getAppById(id: string) {
+export const getAppById = async (id: string): Promise<FullPost | null> => {
   const userId = auth().userId;
 
   const { env } = getRequestContext();
@@ -59,9 +59,9 @@ export async function getAppById(id: string) {
       }
     }
 
-    return JSON.parse(JSON.stringify(fullPost));
+    return fullPost;
   } catch (error) {
     console.error("Error fetching app by ID:", error);
     return null;
   }
-}
+};

@@ -7,17 +7,29 @@ import {
   Button,
   Caption1,
   Card,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
   InfoLabel,
   LargeTitle,
   Link as FluentLink,
   makeStyles,
   Subtitle1,
   Tag,
+  Toast,
+  ToastBody,
+  ToastIntent,
+  ToastTitle,
   tokens,
+  useToastController,
 } from "@fluentui/react-components";
 import {
   ArrowReplyRegular,
   CalendarRegular,
+  EditRegular,
   LinkRegular,
   PersonRegular,
 } from "@fluentui/react-icons";
@@ -28,6 +40,16 @@ import { FullPost } from "@/lib/types/prisma/prisma-types";
 import ShareButton from "@/components/share-button";
 import { Container } from "@/components/ui/container";
 import Giscus from "@giscus/react";
+import { useUser } from "@clerk/nextjs";
+import { Form } from "@/components/ui/form";
+import InputField, { InputTextArea } from "@/components/ui/form/input";
+import SelectField from "@/components/ui/form/select";
+import FormTagPicker from "@/components/ui/form/form-tag-picker";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { aqApi } from "@/lib/axios/api";
+import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 
 const useStyles = makeStyles({
   heroTitle: {
@@ -46,23 +68,83 @@ const useStyles = makeStyles({
   },
 });
 
+const formSchema = z.object({
+  title: z.string().max(255),
+  company: z.string().max(255),
+  description: z.string(),
+  tags: z.array(z.string()).max(3).optional(),
+  app_url: z.string().url().optional().or(z.literal("")),
+  banner_url: z.string().optional().or(z.literal("")),
+  icon_url: z.string().optional().or(z.literal("")),
+  status_id: z.coerce.number(),
+  categoryId: z.string(),
+});
+
+type EditPostRequest = z.infer<typeof formSchema>;
+
 interface AppDetailsContentProps {
   app: FullPost;
+  info: InfoResponse;
 }
 
-export default function AppDetailsContent({ app }: AppDetailsContentProps) {
+export default function AppDetailsContent({
+  app,
+  info,
+}: AppDetailsContentProps) {
   const classes = useStyles();
+  const { user } = useUser();
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "native":
-        return "bg-green-600 text-white";
-      case "emulated":
-        return "bg-yellow-600 text-black";
-      case "not working":
-        return "bg-red-600 text-white";
-      default:
-        return "bg-gray-600 text-white";
+  const isEditable = user?.publicMetadata.role === "admin";
+
+  const { dispatchToast } = useToastController("toaster");
+
+  const form = useForm<EditPostRequest>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: app.title,
+      company: app.company,
+      description: app.description,
+      tags: app.tags.map((tag) => tag.name),
+      app_url: app.app_url || "",
+      banner_url: app.banner_url || "",
+      icon_url: app.icon_url || "",
+      categoryId: app.categoryId,
+      status_id: app.status_id,
+    },
+  });
+
+  const notify = (
+    title: string,
+    subtitle?: string,
+    intent: ToastIntent = "success",
+  ) =>
+    dispatchToast(
+      <Toast>
+        <ToastTitle>{title}</ToastTitle>
+        {subtitle && <ToastBody>{subtitle}</ToastBody>}
+      </Toast>,
+      { intent },
+    );
+
+  const handleEdit = async (values: EditPostRequest) => {
+    try {
+      const response = await aqApi.put(`/api/v1/posts/${app.id}`, values);
+
+      if (response.success) {
+        notify("Post updated successfully");
+
+        setTimeout(() => {
+          location.reload();
+        }, 5000);
+      } else {
+        notify("Error updating post", response.error, "error");
+      }
+    } catch (error) {
+      notify("Error updating post", (error as Error).message, "error");
+    } finally {
+      setIsEditDialogOpen(false);
     }
   };
 
@@ -101,7 +183,11 @@ export default function AppDetailsContent({ app }: AppDetailsContentProps) {
               appearance={"filled-alternative"}
               size="large"
             >
-              <AppDescription description={app.description} />
+              <AppDescription
+                description={app.description}
+                expanded={expanded}
+                setExpanded={setExpanded}
+              />
             </Card>
 
             {app.tags && app.tags.length > 0 && (
@@ -230,18 +316,124 @@ export default function AppDetailsContent({ app }: AppDetailsContentProps) {
                     Back to app list
                   </Button>
                 </Link>
+                {isEditable && (
+                  <Button
+                    icon={<EditRegular />}
+                    onClick={() => setIsEditDialogOpen(true)}
+                    className="w-full"
+                  >
+                    Edit Post
+                  </Button>
+                )}
               </div>
             </Card>
           </div>
         </div>
       </Container>
+
+      {isEditable && (
+        <Dialog
+          open={isEditDialogOpen}
+          onOpenChange={(e, data) => setIsEditDialogOpen(data.open)}
+        >
+          <DialogSurface>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleEdit)}>
+                <DialogBody>
+                  <DialogTitle>Edit Post</DialogTitle>
+                  <DialogContent className="space-y-4">
+                    <InputField
+                      name="title"
+                      label="Title"
+                      formControl={form.control}
+                      placeholder="Application name"
+                    />
+                    <InputField
+                      name="company"
+                      label="Company"
+                      formControl={form.control}
+                      placeholder="Company name"
+                    />
+                    <InputTextArea
+                      name="description"
+                      label="Description"
+                      formControl={form.control}
+                      placeholder="Application description"
+                      rows={5}
+                    />
+                    <InputField
+                      name="app_url"
+                      label="App URL"
+                      formControl={form.control}
+                      placeholder="https://example.com"
+                    />
+                    <InputField
+                      name="icon_url"
+                      label="Icon URL"
+                      formControl={form.control}
+                      placeholder="https://example.com/icon.png"
+                    />
+                    <FormTagPicker
+                      formControl={form.control}
+                      label="Tags"
+                      name="tags"
+                      options={app.tags.map((tag) => tag.name)}
+                    />
+                    <SelectField
+                      formControl={form.control}
+                      label={"Category ID"}
+                      name={"categoryId"}
+                    >
+                      <option value={""}>Select a category</option>
+                      {info?.categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                    <SelectField
+                      formControl={form.control}
+                      label={"Status ID"}
+                      name={"status_id"}
+                    >
+                      <option value={""}>Select the status</option>
+                      {info?.status.map((status) => (
+                        <option key={status.id} value={status.id}>
+                          {status.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                  </DialogContent>
+                  <DialogActions>
+                    <Button
+                      appearance="secondary"
+                      onClick={() => setIsEditDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button appearance="primary" type="submit">
+                      Save Changes
+                    </Button>
+                  </DialogActions>
+                </DialogBody>
+              </form>
+            </Form>
+          </DialogSurface>
+        </Dialog>
+      )}
     </div>
   );
 }
 
-function AppDescription({ description }: { description: string }) {
-  const [expanded, setExpanded] = useState(false);
-
+function AppDescription({
+  description,
+  expanded,
+  setExpanded,
+}: {
+  description: string;
+  expanded: boolean;
+  setExpanded: (expanded: boolean) => void;
+}) {
   return (
     <div>
       <Markdown
@@ -296,6 +488,14 @@ function AppDescription({ description }: { description: string }) {
               <ol className="list-decimal pl-6 mb-4">{children}</ol>
             ),
             li: ({ children }) => <li className="mb-2">{children}</li>,
+            pre: ({ children }) => (
+              <pre className="bg-gray-800 p-4 rounded-lg overflow-x-auto">
+                {children}
+              </pre>
+            ),
+            code: ({ children }) => (
+              <code className="bg-gray-800 p-1 rounded">{children}</code>
+            ),
           }}
         >
           {description.slice(820)}

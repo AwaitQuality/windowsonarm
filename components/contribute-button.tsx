@@ -7,6 +7,11 @@ import {
   DialogSurface,
   DialogTitle,
   DialogTrigger,
+  Toast,
+  ToastBody,
+  ToastIntent,
+  ToastTitle,
+  useToastController,
 } from "@fluentui/react-components";
 import { AddCircleFilled } from "@fluentui/react-icons";
 import { Form } from "@/components/ui/form";
@@ -43,12 +48,25 @@ interface ContributeButtonProps {
 
 const ContributeButton = ({ query }: ContributeButtonProps) => {
   const { userId, sessionId, isSignedIn, isLoaded } = useAuth();
-
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { dispatchToast } = useToastController("toaster");
 
   const form = useForm<postRequest>({
     resolver: zodResolver(formSchema),
   });
+
+  const notify = (
+    title: string,
+    subtitle?: string,
+    intent: ToastIntent = "success",
+  ) =>
+    dispatchToast(
+      <Toast>
+        <ToastTitle>{title}</ToastTitle>
+        {subtitle && <ToastBody>{subtitle}</ToastBody>}
+      </Toast>,
+      { intent },
+    );
 
   const {
     data: info,
@@ -58,17 +76,24 @@ const ContributeButton = ({ query }: ContributeButtonProps) => {
   } = query;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    console.log(values);
+    try {
+      const response = await aqApi.post("/api/v1/posts", values);
 
-    const response = await aqApi.post("/api/v1/posts", values);
+      if (!response.success) {
+        notify("Failed to post application", response.error, "error");
+      }
 
-    if (!response.success) {
-      throw new Error(response.error);
+      form.reset();
+      notify(
+        "Thank you for contributing!",
+        "Your application has been posted successfully. Approval may take up to one week. You will not be notified of the status of your application.",
+        "success",
+      );
+    } catch (error) {
+      notify("Failed to post application", (error as Error).message, "error");
+    } finally {
+      setDialogOpen(false);
     }
-
-    form.reset();
-
-    setDialogOpen(false);
   };
 
   return (

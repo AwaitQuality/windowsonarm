@@ -2,6 +2,7 @@ import React from "react";
 import { Metadata } from "next";
 import { getAppById } from "@/lib/api";
 import AppDetails from "./AppDetails";
+import { getInfo } from "@/lib/backend/info";
 
 export const runtime = "edge";
 
@@ -31,9 +32,10 @@ export default async function AppDetailsPage({
 }: {
   params: { id: string };
 }) {
-  const app = await getAppById(params.id);
+  const app = JSON.parse(JSON.stringify(await getAppById(params.id)));
+  const info = await getInfo();
 
   if (!app) return <div>App not found: {params.id}</div>;
 
-  return <AppDetails app={app} />;
+  return <AppDetails app={app} info={info} />;
 }

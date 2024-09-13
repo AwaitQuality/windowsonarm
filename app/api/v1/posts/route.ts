@@ -96,6 +96,7 @@ export async function GET(request: NextRequest) {
       limit: 100,
     });
 
+    // TODO: Important: don't show unneeded user data
     users.data.forEach((user) => {
       postsWithUpvoteStatus.forEach((post) => {
         if (post.user_id === user.id) {
