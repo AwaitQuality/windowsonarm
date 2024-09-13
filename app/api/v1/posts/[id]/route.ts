@@ -21,7 +21,10 @@ const updatePostSchema = z.object({
   categoryId: z.string(),
 });
 
-export async function GET({ params }: { params: { id: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } },
+) {
   try {
     const post = await getAppById(params.id);
 
