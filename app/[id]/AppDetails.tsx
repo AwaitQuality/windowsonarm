@@ -32,6 +32,7 @@ import {
   LinkRegular,
   PersonRegular,
   ArrowLeftRegular,
+  TagRegular,
 } from "@fluentui/react-icons";
 import dayjs from "dayjs";
 import Link from "next/link";
@@ -50,6 +51,7 @@ import { aqApi } from "@/lib/axios/api";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import ForumMessages from "./ForumMessages";
 import GlobalMarkdown from "@/components/markdown";
+import Image from "next/image";
 
 const useStyles = makeStyles({
   heroTitle: {
@@ -152,9 +154,22 @@ export default function AppDetailsContent({
     <div className="min-h-screen">
       <div className="bg-gradient-to-r from-blue-800 to-blue-950 text-white py-16 mb-12">
         <Container>
-          <h1 className={`${classes.heroTitle} mb-4`}>
-            Is {app.title} ARM ready?
-          </h1>
+          <div className="flex items-center mb-4">
+            {app.icon_url && (
+              <div className="mr-4 bg-gray-300 p-2 rounded-lg shadow-md w-20 h-20 flex items-center justify-center">
+                <Image
+                  src={app.icon_url}
+                  alt={`${app.title} icon`}
+                  width={64}
+                  height={64}
+                  className="rounded-md max-w-full max-h-full object-contain"
+                />
+              </div>
+            )}
+            <h1 className={`${classes.heroTitle}`}>
+              Is {app.title} ARM ready?
+            </h1>
+          </div>
           <h2 className={`${classes.heroSubtitle} mb-6`}>
             <span
               className={`inline-block px-3 py-1 rounded-full`}
@@ -172,6 +187,12 @@ export default function AppDetailsContent({
               <PersonRegular className="mr-2" />
               {app.user?.username || "Anonymous"}
             </span>
+            {app.category && (
+              <span className="flex items-center">
+                <TagRegular className="mr-2" />
+                {app.category.name}
+              </span>
+            )}
           </div>
         </Container>
       </div>
@@ -207,14 +228,7 @@ export default function AppDetailsContent({
               </Card>
             )}
 
-            <Card
-              className="rounded-lg shadow-md p-6 mb-8"
-              appearance={"filled-alternative"}
-              size="large"
-            >
-              <Subtitle1>Discussion</Subtitle1>
-              <ForumMessages postId={app.id} />
-            </Card>
+            <ForumMessages postId={app.id} />
           </div>
 
           <div className="lg:col-span-1">
@@ -228,6 +242,10 @@ export default function AppDetailsContent({
                 <div>
                   <strong>Last updated: </strong>
                   <Body1>{dayjs(app.updated_at).format("MMMM D, YYYY")}</Body1>
+                </div>
+                <div>
+                  <strong>Company: </strong>
+                  <Body1>{app.company}</Body1>
                 </div>
                 <div>
                   <strong>Posted by:</strong>
@@ -389,6 +407,9 @@ export default function AppDetailsContent({
                         </option>
                       ))}
                     </SelectField>
+                    <Body1 className="!mt-2">
+                      Status hint: {app.status_hint}
+                    </Body1>
                   </DialogContent>
                   <DialogActions>
                     <Button
