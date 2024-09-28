@@ -227,6 +227,28 @@ export default function AppDetailsContent({
             )}
 
             <ForumMessages postId={app.id} />
+
+            <Card
+              className="rounded-lg shadow-md p-6 mb-8"
+              appearance={"filled-alternative"}
+              size="large"
+            >
+              <Subtitle1 className="mb-4">Discuss on Github</Subtitle1>
+              <Giscus
+                repo="AwaitQuality/windowsonarm"
+                repoId="R_kgDOMUHZaw"
+                category="General"
+                categoryId="DIC_kwDOMUHZa84Cg2tJ"
+                mapping="specific"
+                term={app.title}
+                strict="0"
+                theme={"noborder_dark"}
+                reactionsEnabled="0"
+                emitMetadata="0"
+                inputPosition="bottom"
+                lang="en"
+              />
+            </Card>
           </div>
 
           <div className="lg:col-span-1">
