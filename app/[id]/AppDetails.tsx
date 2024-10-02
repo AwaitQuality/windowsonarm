@@ -227,6 +227,7 @@ export default function AppDetailsContent({
             )}
 
             <ForumMessages postId={app.id} />
+
             <Card
               className="rounded-lg shadow-md p-6 mb-8"
               appearance={"filled-alternative"}
