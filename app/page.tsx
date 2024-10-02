@@ -25,6 +25,7 @@ import ContributeButton from "@/components/contribute-button";
 import { DismissRegular } from "@fluentui/react-icons";
 import { usePersistedState } from "@/lib/persisted-state";
 import { useRouter } from "next/navigation";
+import { SiDiscord } from "@icons-pack/react-simple-icons";
 
 export default function Home() {
   const {
@@ -107,6 +108,28 @@ export default function Home() {
           setSelectedCategory={setSelectedCategory}
           setSearchBox={setSearchBox}
         />
+
+        <div className="rounded-lg p-4 mb-5 relative overflow-hidden w-full">
+          <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-blue-500/20 to-transparent opacity-70 blur-xl pointer-events-none"></div>
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center">
+              <span className="font-semibold">
+                We now have a Discord server! Join now to get support and
+                discuss Windows on ARM with other users.
+              </span>
+            </div>
+            <Button
+              as="a"
+              href="https://discord.gg/8EVWtctVEk"
+              target="_blank"
+              rel="noopener noreferrer"
+              appearance="primary"
+              icon={<SiDiscord />}
+            >
+              Join Now
+            </Button>
+          </div>
+        </div>
 
         {messageBox === "true" && (
           <MessageBar className="mb-4 w-full">
