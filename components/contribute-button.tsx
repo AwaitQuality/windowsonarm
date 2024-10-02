@@ -29,6 +29,10 @@ import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import axios from "axios";
 import FileUploader from "@/components/ui/upload-button";
+import {
+  FileUploadRequest,
+  FileUploadResponse,
+} from "@/app/api/v1/upload/route";
 
 export const postSchema = z.object({
   title: z.string().max(255),
@@ -46,17 +50,6 @@ export type postRequest = z.infer<typeof postSchema>;
 
 interface ContributeButtonProps {
   query: UseQueryResult<InfoResponse, unknown>;
-}
-
-interface FileUploadRequest {
-  filename: string;
-  contentType: string;
-}
-
-interface FileUploadResponse {
-  url: string;
-  fields: Record<string, string>;
-  downloadUrl: string;
 }
 
 const ContributeButton: React.FC<ContributeButtonProps> = ({ query }) => {

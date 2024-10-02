@@ -8,9 +8,15 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export const runtime = "edge";
 
-interface UploadRequest {
+export interface FileUploadRequest {
   filename: string;
   contentType: string;
+}
+
+export interface FileUploadResponse {
+  url: string;
+  fields: Record<string, string>;
+  downloadUrl: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -22,7 +28,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { env } = getRequestContext();
-    const { filename, contentType } = (await request.json()) as UploadRequest;
+    const { filename, contentType } =
+      (await request.json()) as FileUploadRequest;
 
     if (!filename || !contentType) {
       return ErrorResponse.json("Filename and content type are required");

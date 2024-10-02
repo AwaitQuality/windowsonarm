@@ -7,6 +7,8 @@ import {
   MessageBarTitle,
   SearchBox,
   Select,
+  Skeleton,
+  SkeletonItem,
   Tab,
   TabList,
 } from "@fluentui/react-components";
@@ -71,7 +73,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
       <MessageBar>
         <MessageBarBody>
           <MessageBarTitle>Something went wrong</MessageBarTitle>
-          We couldn't fetch the data. Please try again later.
+          We couldn&apos;t fetch the data. Please try again later.
         </MessageBarBody>
         <MessageBarActions
           containerAction={
@@ -89,7 +91,22 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   }
 
   if (infoIsIdle || infoIsLoading || !info) {
-    return null;
+    return (
+      <Skeleton
+        aria-label="Loading Content"
+        className="w-full h-28 space-y-4 mt-4 mb-4"
+      >
+        <SkeletonItem className="w-full !h-10" />
+        <div className="flex flex-row gap-2">
+          <SkeletonItem className="!h-8" />
+          <SkeletonItem className="!h-8" />
+          <SkeletonItem className="!h-8" />
+          <SkeletonItem className="!h-8" />
+          <SkeletonItem className="!h-8" />
+          <SkeletonItem className="!h-8" />
+        </div>
+      </Skeleton>
+    );
   }
 
   const handleCategoryChange = (value: string) => {
