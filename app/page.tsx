@@ -17,7 +17,6 @@ import { Container } from "@/components/ui/container";
 import ShareButton from "@/components/share-button";
 import Navigation from "@/components/navigation";
 import AppTable from "@/components/app-table";
-import { useAppContext } from "@/contexts/AppContext";
 import InfoSection from "@/components/info-section";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import { PostsResponse } from "@/app/api/v1/posts/route";
@@ -26,16 +25,19 @@ import { DismissRegular } from "@fluentui/react-icons";
 import { usePersistedState } from "@/lib/persisted-state";
 import { useRouter } from "next/navigation";
 import { SiDiscord } from "@icons-pack/react-simple-icons";
+import { useQueryStates, parseAsString } from "nuqs";
 
 export default function Home() {
-  const {
-    selectedCategory,
-    setSelectedCategory,
-    selectedStatus,
-    setSelectedStatus,
-  } = useAppContext();
+  const [{ category, status, search }, setQueryStates] = useQueryStates({
+    category: parseAsString.withDefault(""),
+    status: parseAsString.withDefault(""),
+    search: parseAsString.withDefault(""),
+  });
 
-  const [searchBox, setSearchBox] = React.useState<string>("");
+  const selectedCategory = category || null;
+  const selectedStatus = status ? parseInt(status) : null;
+  const searchBox = search || "";
+
   const [messageBox, setMessageBox] = usePersistedState("messageBox", "true");
   const router = useRouter();
 
@@ -82,6 +84,19 @@ export default function Home() {
     },
   );
 
+  // Helper functions to update URL state
+  const setSelectedCategory = (newCategory: string | null) => {
+    setQueryStates({ category: newCategory || "" });
+  };
+
+  const setSelectedStatus = (newStatus: number | null) => {
+    setQueryStates({ status: newStatus?.toString() || "" });
+  };
+
+  const setSearchBox = (newSearch: string) => {
+    setQueryStates({ search: newSearch });
+  };
+
   return (
     <Container>
       <Navigation className={"pt-10"} />
@@ -97,13 +112,13 @@ export default function Home() {
 
         <div className={"mb-8 flex gap-2"}>
           <ContributeButton query={infoQuery} />
-
           <ShareButton />
         </div>
 
         <InfoSection
           query={infoQuery}
           selectedStatus={selectedStatus}
+          selectedCategory={selectedCategory}
           setSelectedStatus={setSelectedStatus}
           setSelectedCategory={setSelectedCategory}
           setSearchBox={setSearchBox}

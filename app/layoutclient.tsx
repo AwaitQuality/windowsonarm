@@ -65,5 +65,4 @@ function ClientWrapper({ children }: { children: React.ReactNode }) {
     </AppProvider>
   );
 }
-
 export default ClientWrapper;

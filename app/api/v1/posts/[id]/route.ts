@@ -95,3 +95,38 @@ export async function PUT(
     return ErrorResponse.json(error.message);
   }
 }
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { userId } = auth();
+
+    if (!userId) {
+      return ErrorResponse.json("User not found", {
+        status: 401,
+      });
+    }
+
+    const user = await clerkClient().users.getUser(userId);
+
+    if (!user || user.publicMetadata.role !== "admin") {
+      return ErrorResponse.json("Unauthorized", {
+        status: 401,
+      });
+    }
+
+    const { env } = getRequestContext();
+    const prisma = getPrisma(env.DB);
+
+    await prisma.post.delete({
+      where: { id: params.id },
+    });
+
+    return DataResponse.json({ success: true });
+  } catch (error: any) {
+    console.error("Error deleting post:", error);
+    return ErrorResponse.json(error.message);
+  }
+}

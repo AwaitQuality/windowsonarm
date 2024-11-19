@@ -2,6 +2,7 @@ import "./globals.css";
 import React from "react";
 import type { Metadata, Viewport } from "next";
 import ClientWrapper from "@/app/layoutclient";
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 
 export const metadata: Metadata = {
   title: "Windows on ARM | Software Compatibility List",
@@ -97,7 +98,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ClientWrapper>{children}</ClientWrapper>
+        <NuqsAdapter>
+          <ClientWrapper>{children}</ClientWrapper>
+        </NuqsAdapter>
       </body>
     </html>
   );

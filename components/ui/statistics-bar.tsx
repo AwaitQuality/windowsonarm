@@ -4,10 +4,8 @@ import { cn } from "@/lib/utils";
 
 interface StatisticsBarProps {
   statuses: StatusWithPercentage[];
-  selectedStatus: number | null | undefined;
-  setSelectedStatus: React.Dispatch<
-    React.SetStateAction<number | undefined | null>
-  >;
+  selectedStatus: number | null;
+  setSelectedStatus: (status: number | null) => void;
 }
 
 const StatisticsBar: React.FC<StatisticsBarProps> = ({
@@ -16,9 +14,7 @@ const StatisticsBar: React.FC<StatisticsBarProps> = ({
   setSelectedStatus,
 }) => {
   const out = statuses
-    .filter(
-      (status) => selectedStatus === undefined || status.id === selectedStatus,
-    )
+    .filter((status) => selectedStatus === null || status.id === selectedStatus)
     .filter((status) => status.percentage > 0)
     .sort((a, b) => a.index - b.index);
 
@@ -30,12 +26,10 @@ const StatisticsBar: React.FC<StatisticsBarProps> = ({
             key={index}
             className="group relative flex flex-col gap-2 hover:cursor-pointer hover:transform hover:scale-105 transition-all duration-200 hover:z-10"
             style={{
-              width: `${selectedStatus === undefined ? status.percentage : 100}%`,
+              width: `${selectedStatus === null ? status.percentage : 100}%`,
             }}
             onClick={() =>
-              setSelectedStatus(
-                selectedStatus === status.id ? undefined : status.id,
-              )
+              setSelectedStatus(selectedStatus === status.id ? null : status.id)
             }
           >
             <div className="flex items-center">
@@ -62,7 +56,11 @@ const StatisticsBar: React.FC<StatisticsBarProps> = ({
             </div>
             <div
               className={cn(
-                `h-2 pl-2 w-full ${index === 0 ? "rounded-l-full" : ""} ${index === statuses.length - 1 ? "rounded-r-full" : ""} ${selectedStatus === status.id ? "rounded-full" : ""} group-hover:h-5`,
+                `h-2 pl-2 w-full ${index === 0 ? "rounded-l-full" : ""} ${
+                  index === statuses.length - 1 ? "rounded-r-full" : ""
+                } ${
+                  selectedStatus === status.id ? "rounded-full" : ""
+                } group-hover:h-5`,
                 selectedStatus === status.id ? "h-5" : "",
               )}
               style={{

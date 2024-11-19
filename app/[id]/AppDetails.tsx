@@ -33,6 +33,7 @@ import {
   PersonRegular,
   ArrowLeftRegular,
   TagRegular,
+  DeleteRegular,
 } from "@fluentui/react-icons";
 import dayjs from "dayjs";
 import Link from "next/link";
@@ -104,6 +105,7 @@ export default function AppDetailsContent({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const isEditable = user?.publicMetadata.role === "admin";
 
@@ -182,6 +184,25 @@ export default function AppDetailsContent({
       notify("Error updating post", (error as Error).message, "error");
     } finally {
       setIsEditDialogOpen(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      const response = await aqApi.delete(`/api/v1/posts/${app.id}`);
+
+      if (response.success) {
+        notify("Post deleted successfully");
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 1000);
+      } else {
+        notify("Error deleting post", response.error, "error");
+      }
+    } catch (error) {
+      notify("Error deleting post", (error as Error).message, "error");
+    } finally {
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -384,6 +405,16 @@ export default function AppDetailsContent({
                     Edit Post
                   </Button>
                 )}
+                {isEditable && (
+                  <Button
+                    icon={<DeleteRegular />}
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                    className="w-full !bg-red-600 !text-white hover:!bg-red-700"
+                    appearance="primary"
+                  >
+                    Delete Post
+                  </Button>
+                )}
               </div>
             </Card>
           </div>
@@ -485,6 +516,36 @@ export default function AppDetailsContent({
                 </DialogBody>
               </form>
             </Form>
+          </DialogSurface>
+        </Dialog>
+      )}
+
+      {isEditable && (
+        <Dialog
+          open={isDeleteDialogOpen}
+          onOpenChange={(e, data) => setIsDeleteDialogOpen(data.open)}
+        >
+          <DialogSurface>
+            <DialogBody>
+              <DialogTitle>Delete Post</DialogTitle>
+              <DialogContent>
+                Are you sure you want to delete this post? This action cannot be undone.
+              </DialogContent>
+              <DialogActions>
+                <Button
+                  appearance="secondary"
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button appearance="primary" 
+                  className="!bg-red-600 !text-white hover:!bg-red-700" 
+                  onClick={handleDelete}
+                >
+                  Delete
+                </Button>
+              </DialogActions>
+            </DialogBody>
           </DialogSurface>
         </Dialog>
       )}

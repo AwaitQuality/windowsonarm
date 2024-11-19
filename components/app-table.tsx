@@ -20,7 +20,13 @@ import {
   ToastTitle,
   useToastController,
 } from "@fluentui/react-components";
-import { AddCircleFilled, DismissRegular } from "@fluentui/react-icons";
+import {
+  AddCircleFilled,
+  DismissRegular,
+  MailRegular,
+  StarRegular,
+  ArrowRightRegular,
+} from "@fluentui/react-icons";
 import dayjs from "dayjs";
 import { Post } from "@prisma/client";
 import { UseInfiniteQueryResult } from "react-query";
@@ -93,14 +99,14 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
   const notify = (
     title: string,
     subtitle?: string,
-    intent: ToastIntent = "success",
+    intent: ToastIntent = "success"
   ) =>
     dispatchToast(
       <Toast>
         <ToastTitle>{title}</ToastTitle>
         {subtitle && <ToastBody>{subtitle}</ToastBody>}
       </Toast>,
-      { intent },
+      { intent }
     );
 
   useEffect(() => {
@@ -130,6 +136,12 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [hasNextPage, isFetchingNextPage]);
 
+  const handleFeatureClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.location.href =
+      "mailto:dejan@thearcadia.xyz?subject=Feature%20Request%20for%20Windows%20on%20ARM&body=I%20would%20like%20to%20feature%20my%20app%20on%20Windows%20on%20ARM.";
+  };
+
   if (isError) {
     return (
       <MessageBar>
@@ -155,7 +167,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
 
   const onUpvoteClick = async (
     e: React.MouseEvent<HTMLButtonElement>,
-    post: FullPost,
+    post: FullPost
   ) => {
     e.stopPropagation();
 
@@ -167,15 +179,15 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
               ...p,
               userUpvoted: !p.userUpvoted,
             }
-          : p,
-      ),
+          : p
+      )
     );
 
     const response = await aqApi.post<Post, UpvoteRequest>(
       "/api/v1/posts/upvote",
       {
         postId: post.id,
-      },
+      }
     );
 
     if (!response.success) {
@@ -186,8 +198,8 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
                 ...p,
                 userUpvoted: !p.userUpvoted,
               }
-            : p,
-        ),
+            : p
+        )
       );
 
       notify("Failed to upvote", response.error, "error");
@@ -227,6 +239,45 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
           </TableRow>
         </TableHeader>
         <TableBody>
+          {/* Featured Row */}
+          <TableRow
+            className="cursor-pointer group relative hover:bg-blue-50/5 mb-6"
+            onClick={handleFeatureClick}
+          >
+            <TableCell
+              colSpan={columns.length}
+              className="!p-4 border-b-2 border-blue-500/20"
+            >
+              <div className="relative">
+                {/* Glow Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-blue-500/10 blur-2xl opacity-50 group-hover:opacity-75 transition-all duration-500" />
+
+                {/* Content */}
+                <div className="relative flex items-center gap-6">
+                  <div className="flex-shrink-0 p-3 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20">
+                    <StarRegular 
+                      className="text-blue-500 group-hover:scale-110 transition-transform duration-300" 
+                      fontSize={32} 
+                    />
+                  </div>
+                  <div className="flex-grow space-y-2">
+                    <div className="font-semibold text-xl group-hover:text-blue-500 transition-colors duration-300">
+                      Want to promote your Windows on ARM application and support our work?
+                    </div>
+                    <div className="text-gray-500 max-w-2xl">
+                      Get your application featured at the top of our list and reach thousands of Windows on ARM users. 
+                      Perfect for showcasing your ARM-native apps or highlighting your progress on ARM compatibility.
+                      <span className="inline-flex items-center gap-1 text-blue-500 mt-2 *:group-hover:translate-x-1 transition-transform duration-300">
+                        Contact us to learn more <ArrowRightRegular />
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </TableCell>
+          </TableRow>
+
+          {/* Regular Rows */}
           {!isLoading &&
             !isIdle &&
             optimisticPosts.map((item) => (

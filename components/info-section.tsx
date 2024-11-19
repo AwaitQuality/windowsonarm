@@ -37,23 +37,23 @@ const useMediaQuery = (query: string): boolean => {
 
 interface InfoSectionProps {
   query: UseQueryResult<InfoResponse>;
-  selectedStatus: number | undefined | null;
-  setSelectedStatus: React.Dispatch<
-    React.SetStateAction<number | undefined | null>
-  >;
+  selectedStatus: number | null;
+  selectedCategory: string | null;
+  setSelectedStatus: (status: number | null) => void;
   setSelectedCategory: (category: string | null) => void;
   setSearchBox: (search: string) => void;
 }
 
 const InfoSection: React.FC<InfoSectionProps> = ({
   selectedStatus,
+  selectedCategory,
   setSelectedStatus,
   setSelectedCategory,
   setSearchBox,
   query,
 }) => {
   const isDesktop = useMediaQuery("(min-width: 1300px)");
-  const [selectedValue, setSelectedValue] = useState("tab0");
+  const [selectedValue, setSelectedValue] = useState(selectedCategory || "tab0");
 
   const {
     data: info,
@@ -63,10 +63,8 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   } = query;
 
   useEffect(() => {
-    if (isDesktop) {
-      setSelectedCategory(selectedValue === "tab0" ? null : selectedValue);
-    }
-  }, [isDesktop, selectedValue, setSelectedCategory]);
+    setSelectedValue(selectedCategory || "tab0");
+  }, [selectedCategory]);
 
   if (infoIsError) {
     return (
@@ -114,58 +112,10 @@ const InfoSection: React.FC<InfoSectionProps> = ({
     setSelectedCategory(value === "tab0" ? null : value);
   };
 
-  const renderCategorySelector = () => {
-    if (isDesktop) {
-      return (
-        <TabList
-          selectedValue={selectedValue}
-          onTabSelect={(_, data) => handleCategoryChange(data.value as string)}
-        >
-          <Tab value="tab0" icon={<GridDotsRegular />}>
-            Show all
-          </Tab>
-          {info.categories
-            .sort((a, b) => a.index - b.index)
-            .map((category) => {
-              // @ts-ignore
-              let Icon = FluentIcons[category.icon];
-
-              if (!Icon) {
-                Icon = FluentIcons.InfoRegular;
-              }
-
-              return (
-                <Tab key={category.id} value={category.id} icon={<Icon />}>
-                  {category.name}
-                </Tab>
-              );
-            })}
-        </TabList>
-      );
-    } else {
-      return (
-        <Select
-          value={selectedValue}
-          onChange={(_, data) => handleCategoryChange(data.value as string)}
-          className={"w-full"}
-        >
-          <option value="tab0">Show all</option>
-          {info.categories
-            .sort((a, b) => a.index - b.index)
-            .map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-        </Select>
-      );
-    }
-  };
-
   return (
     <>
       <StatisticsBar
-        statuses={info.status}
+        statuses={info?.status || []}
         selectedStatus={selectedStatus}
         setSelectedStatus={setSelectedStatus}
       />
@@ -174,7 +124,45 @@ const InfoSection: React.FC<InfoSectionProps> = ({
           "flex flex-col md:flex-row items-center justify-center gap-4 h-24 md:h-14 mb-4 w-full"
         }
       >
-        {renderCategorySelector()}
+        {isDesktop ? (
+          <TabList
+            selectedValue={selectedValue}
+            onTabSelect={(_, data) => handleCategoryChange(data.value as string)}
+          >
+            <Tab value="tab0" icon={<GridDotsRegular />}>
+              Show all
+            </Tab>
+            {info?.categories
+              .sort((a, b) => a.index - b.index)
+              .map((category) => {
+                // @ts-ignore
+                let Icon = FluentIcons[category.icon];
+                if (!Icon) {
+                  Icon = FluentIcons.InfoRegular;
+                }
+                return (
+                  <Tab key={category.id} value={category.id} icon={<Icon />}>
+                    {category.name}
+                  </Tab>
+                );
+              })}
+          </TabList>
+        ) : (
+          <Select
+            value={selectedValue}
+            onChange={(_, data) => handleCategoryChange(data.value as string)}
+            className={"w-full"}
+          >
+            <option value="tab0">Show all</option>
+            {info?.categories
+              .sort((a, b) => a.index - b.index)
+              .map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+          </Select>
+        )}
         <SearchBox
           className={"w-full"}
           placeholder={"Search"}
