@@ -1,5 +1,5 @@
 import "./globals.css";
-import React from "react";
+import React, { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import ClientWrapper from "@/app/layoutclient";
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
@@ -98,9 +98,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <NuqsAdapter>
-          <ClientWrapper>{children}</ClientWrapper>
-        </NuqsAdapter>
+        <Suspense>
+          <NuqsAdapter>
+            <ClientWrapper>{children}</ClientWrapper>
+          </NuqsAdapter>
+        </Suspense>
       </body>
     </html>
   );
