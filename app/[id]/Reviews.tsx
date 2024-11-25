@@ -1,32 +1,33 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  Avatar,
   Body1,
   Button,
-  Card,
+  Caption1,
   Dialog,
   DialogActions,
   DialogBody,
   DialogContent,
   DialogSurface,
   DialogTitle,
+  makeStyles,
+  Subtitle1,
+  Text,
   Toast,
   ToastBody,
   ToastIntent,
   ToastTitle,
-  useToastController,
-  Avatar,
-  Text,
-  Caption1,
   tokens,
-  makeStyles,
-  CardHeader,
-  Subtitle1,
-  ProgressBar,
-  Divider,
+  useToastController,
 } from "@fluentui/react-components";
-import { StarRegular, EditRegular, StarFilled, DeleteRegular } from "@fluentui/react-icons";
+import {
+  DeleteRegular,
+  EditRegular,
+  StarFilled,
+  StarRegular,
+} from "@fluentui/react-icons";
 import { useUser } from "@clerk/nextjs";
 import { aqApi } from "@/lib/axios/api";
 import dayjs from "dayjs";
@@ -148,8 +149,7 @@ const useStyles = makeStyles({
     marginBottom: tokens.spacingVerticalS,
     alignItems: "center",
   },
-  reviewContent: {
-  },
+  reviewContent: {},
   textarea: {
     width: "100%",
     padding: tokens.spacingVerticalM,
@@ -192,14 +192,14 @@ export default function Reviews({ postId }: { postId: string }) {
   const notify = (
     title: string,
     subtitle?: string,
-    intent: ToastIntent = "success"
+    intent: ToastIntent = "success",
   ) =>
     dispatchToast(
       <Toast>
         <ToastTitle>{title}</ToastTitle>
         {subtitle && <ToastBody>{subtitle}</ToastBody>}
       </Toast>,
-      { intent }
+      { intent },
     );
 
   useEffect(() => {
@@ -207,7 +207,7 @@ export default function Reviews({ postId }: { postId: string }) {
   }, [postId]);
 
   useEffect(() => {
-    if (user?.publicMetadata?.role === 'admin') {
+    if (user?.publicMetadata?.role === "admin") {
       setIsAdmin(true);
     }
   }, [user]);
@@ -237,7 +237,7 @@ export default function Reviews({ postId }: { postId: string }) {
         notify(
           editingReview
             ? "Review updated successfully"
-            : "Review submitted successfully"
+            : "Review submitted successfully",
         );
         setIsReviewDialogOpen(false);
         setRating(0);
@@ -253,7 +253,7 @@ export default function Reviews({ postId }: { postId: string }) {
   const handleDeleteReview = async (reviewId: string) => {
     try {
       const response = await aqApi.delete(
-        `/api/v1/posts/${postId}/reviews?reviewId=${reviewId}`
+        `/api/v1/posts/${postId}/reviews?reviewId=${reviewId}`,
       );
 
       if (response.success) {
@@ -351,7 +351,9 @@ export default function Reviews({ postId }: { postId: string }) {
                   size={48}
                 />
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <div
+                    style={{ display: "flex", justifyContent: "space-between" }}
+                  >
                     <div>
                       <Text weight="semibold">
                         {review.user?.username || "Anonymous"}
@@ -360,7 +362,12 @@ export default function Reviews({ postId }: { postId: string }) {
                         {renderStars(review.rating)}
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: tokens.spacingHorizontalS }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: tokens.spacingHorizontalS,
+                      }}
+                    >
                       {user?.id === review.user_id && (
                         <Button
                           icon={<EditRegular />}
@@ -375,7 +382,11 @@ export default function Reviews({ postId }: { postId: string }) {
                           icon={<DeleteRegular />}
                           appearance="subtle"
                           onClick={() => {
-                            if (window.confirm('Are you sure you want to delete this review?')) {
+                            if (
+                              window.confirm(
+                                "Are you sure you want to delete this review?",
+                              )
+                            ) {
                               handleDeleteReview(review.id);
                             }
                           }}
@@ -449,10 +460,7 @@ export default function Reviews({ postId }: { postId: string }) {
                 }}
               >
                 <div>
-                  <Body1
-                    weight="semibold"
-                    style={{ marginBottom: tokens.spacingVerticalS }}
-                  >
+                  <Body1 style={{ marginBottom: tokens.spacingVerticalS }}>
                     Overall Rating
                   </Body1>
                   <div
@@ -475,10 +483,7 @@ export default function Reviews({ postId }: { postId: string }) {
                   </div>
                 </div>
                 <div>
-                  <Body1
-                    weight="semibold"
-                    style={{ marginBottom: tokens.spacingVerticalS }}
-                  >
+                  <Body1 style={{ marginBottom: tokens.spacingVerticalS }}>
                     Review (optional)
                   </Body1>
                   <textarea
@@ -488,11 +493,13 @@ export default function Reviews({ postId }: { postId: string }) {
                     className={styles.textarea}
                     maxLength={MAX_REVIEW_LENGTH}
                   />
-                  <Caption1 style={{ 
-                    marginTop: tokens.spacingVerticalXS,
-                    color: tokens.colorNeutralForeground3,
-                    textAlign: 'right'
-                  }}>
+                  <Caption1
+                    style={{
+                      marginTop: tokens.spacingVerticalXS,
+                      color: tokens.colorNeutralForeground3,
+                      textAlign: "right",
+                    }}
+                  >
                     {comment.length}/{MAX_REVIEW_LENGTH} characters
                   </Caption1>
                 </div>
