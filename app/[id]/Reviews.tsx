@@ -294,7 +294,7 @@ export default function Reviews({ postId }: { postId: string }) {
   return (
     <div className={styles.root}>
       <div className={styles.header}>
-        <Subtitle1>Customer Reviews</Subtitle1>
+        <Subtitle1>App Reviews</Subtitle1>
         {isSignedIn && !userReview && (
           <Button
             appearance="primary"
