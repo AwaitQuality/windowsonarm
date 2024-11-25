@@ -160,7 +160,6 @@ const useStyles = makeStyles({
     minHeight: "100px",
     "&:focus": {
       outline: "none",
-      borderColor: tokens.colorBrandStroke1,
     },
   },
 });
