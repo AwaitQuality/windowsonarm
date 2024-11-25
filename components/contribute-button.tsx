@@ -41,7 +41,7 @@ export const postSchema = z.object({
   tags: z.array(z.string()).max(10).optional(),
   app_url: z.string().optional(),
   banner_url: z.string().optional(),
-  status_hint: z.string().optional(),
+  status_hint: z.string(),
   icon_url: z.string().optional(),
   categoryId: z.string(),
 });
@@ -219,14 +219,14 @@ const ContributeButton: React.FC<ContributeButtonProps> = ({ query }) => {
 
                 <SelectField
                   formControl={form.control}
-                  label={"Status hint"}
+                  label={"Status"}
                   name={"status_hint"}
                   description={
-                    "Select a status hint for the application. If you're not sure, select the 'Under review' status and we will test the app for you."
+                    "Select a status hint for the application. Please don't submit an app if you're not sure about the status."
                   }
                 >
                   <option value={""}>Select a status hint</option>
-                  {info?.status.map((status) => (
+                  {info?.status.filter(s => s.id >= 0).map((status) => (
                     <option key={status.id} value={status.id}>
                       {status.name}
                     </option>

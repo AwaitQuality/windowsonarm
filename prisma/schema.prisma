@@ -29,6 +29,7 @@ model Post {
   category              Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   status                Status   @relation(fields: [status_id], references: [id])
   upvotes               Upvote[]
+  reviews               Review[]
 
   @@index([categoryId])
   @@index([status_id])
@@ -75,4 +76,18 @@ model Category {
   posts Post[]
 
   @@index([name])
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  post_id     String
+  user_id     String
+  rating      Int      // 1-5 stars
+  comment     String?  // Optional review text
+  created_at  DateTime @default(now())
+  updated_at  DateTime @default(now())
+  post        Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@index([post_id])
+  @@index([user_id])
 }

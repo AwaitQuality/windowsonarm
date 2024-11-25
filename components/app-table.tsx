@@ -40,18 +40,42 @@ import { UpvoteRequest } from "@/app/api/v1/posts/upvote/route";
 
 const useStyles = makeStyles({
   responsiveCell: {
-    "@media (max-width: 640px)": {
-      "&:nth-child(n+3)": {
+    display: "table-cell",
+
+    // Default widths for full desktop view
+    "&:first-child": { width: "33%" }, // Title
+    "&:nth-child(2)": { width: "15%" }, // Status
+    "&:nth-child(3)": { width: "20%" }, // Company
+    "&:nth-child(4)": { width: "20%" }, // Author
+    "&:nth-child(5)": { width: "12%" }, // Last Updated
+
+    "@media (max-width: 1024px)": {
+      "&:nth-child(5)": {
         display: "none",
       },
+      // Adjust remaining columns
+      "&:first-child": { width: "35%" },
+      "&:nth-child(2)": { width: "20%" },
+      "&:nth-child(3)": { width: "25%" },
+      "&:nth-child(4)": { width: "20%" },
     },
     "@media (max-width: 768px)": {
-      "&:nth-child(n+4)": {
+      "&:nth-child(4)": {
         display: "none",
       },
+      "&:nth-child(3)": {
+        display: "none",
+      },
+      // Show only title and status
+      "&:first-child": { width: "60%" },
+      "&:nth-child(2)": { width: "40%" },
     },
-    "@media (max-width: 1024px)": {
-      "&:nth-child(n+5)": {
+    "@media (max-width: 480px)": {
+      // Keep title and status visible
+      "&:first-child": { width: "70%" },
+      "&:nth-child(2)": { width: "30%" },
+      "&:nth-child(n+3)": {
+        // Hide everything after status
         display: "none",
       },
     },
@@ -59,6 +83,40 @@ const useStyles = makeStyles({
   tableContainer: {
     overflowX: "auto",
     marginBottom: "1rem",
+    "@media (max-width: 640px)": {
+      overflowX: "hidden",
+      padding: "0 1rem",
+    },
+  },
+  table: {
+    tableLayout: "fixed",
+    width: "100%",
+  },
+  featuredCell: {
+    "@media (max-width: 640px)": {
+      padding: "0.75rem !important",
+
+      "& .featured-icon": {
+        padding: "0.5rem !important",
+        "& svg": {
+          fontSize: "20px !important",
+        },
+      },
+
+      "& .featured-title": {
+        fontSize: "1rem !important",
+        lineHeight: "1.25rem !important",
+      },
+
+      "& .featured-description": {
+        fontSize: "0.875rem !important",
+        lineHeight: "1.25rem !important",
+      },
+
+      "& .gap-6": {
+        gap: "0.75rem !important",
+      },
+    },
   },
 });
 
@@ -138,8 +196,6 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
 
   const handleFeatureClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    window.location.href =
-      "mailto:dejan@thearcadia.xyz?subject=Feature%20Request%20for%20Windows%20on%20ARM&body=I%20would%20like%20to%20feature%20my%20app%20on%20Windows%20on%20ARM.";
   };
 
   if (isError) {
@@ -225,7 +281,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
 
   return (
     <div className={styles.tableContainer}>
-      <Table arial-label="Responsive table">
+      <Table arial-label="Applications table" className={styles.table}>
         <TableHeader>
           <TableRow>
             {columns.map((column) => (
@@ -239,41 +295,38 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {/* Featured Row */}
+          {/* Featured Row - restore original content but keep mobile-friendly */}
           <TableRow
             className="cursor-pointer group relative hover:bg-blue-50/5 mb-6"
             onClick={handleFeatureClick}
           >
             <TableCell
               colSpan={columns.length}
-              className="!p-4 border-b-2 border-blue-500/20"
+              className={`!p-4 border-b-2 border-blue-500/20 ${styles.featuredCell}`}
             >
-              <div className="relative">
-                {/* Glow Effect */}
+              <a href="mailto:dejan@thearcadia.xyz?subject=Feature%20Request%20for%20Windows%20on%20ARM&body=I%20would%20like%20to%20feature%20my%20app%20on%20Windows%20on%20ARM." className="relative">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-blue-500/10 blur-2xl opacity-50 group-hover:opacity-75 transition-all duration-500" />
-
-                {/* Content */}
                 <div className="relative flex items-center gap-6">
-                  <div className="flex-shrink-0 p-3 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20">
-                    <StarRegular 
-                      className="text-blue-500 group-hover:scale-110 transition-transform duration-300" 
-                      fontSize={32} 
+                  <div className="featured-icon flex-shrink-0 p-3 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20">
+                    <StarRegular
+                      className="text-blue-500 group-hover:scale-110 transition-transform duration-300"
+                      fontSize={32}
                     />
                   </div>
-                  <div className="flex-grow space-y-2">
-                    <div className="font-semibold text-xl group-hover:text-blue-500 transition-colors duration-300">
-                      Want to promote your Windows on ARM application and support our work?
+                  <div className="flex-grow space-y-1">
+                    <div className="featured-title font-semibold text-xl group-hover:text-blue-500 transition-colors duration-300">
+                      Want to promote your Windows on ARM application?
                     </div>
-                    <div className="text-gray-500 max-w-2xl">
-                      Get your application featured at the top of our list and reach thousands of Windows on ARM users. 
-                      Perfect for showcasing your ARM-native apps or highlighting your progress on ARM compatibility.
-                      <span className="inline-flex items-center gap-1 text-blue-500 mt-2 *:group-hover:translate-x-1 transition-transform duration-300">
-                        Contact us to learn more <ArrowRightRegular />
-                      </span>
+                    <div className="featured-description text-gray-500">
+                      Get featured at the top of our list and reach thousands of
+                      Windows on ARM users while supporting our work.
+                      <div className="flex items-center gap-1 text-blue-500 mt-1 *:group-hover:translate-x-1 transition-transform duration-300">
+                        Contact us <ArrowRightRegular />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              </a>
             </TableCell>
           </TableRow>
 
@@ -284,6 +337,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
               <TableRow
                 key={item.id}
                 onClick={() => (onAppClick ? onAppClick(item) : undefined)}
+                className="hover:bg-neutral-50/5"
               >
                 {columns.map((column) => (
                   <TableCell

@@ -126,9 +126,9 @@ export default function Home() {
 
         <div className="rounded-lg p-4 mb-5 relative overflow-hidden w-full">
           <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-blue-500/20 to-transparent opacity-70 blur-xl pointer-events-none"></div>
-          <div className="flex items-center justify-between relative z-10">
+          <div className="flex items-center justify-between relative z-10 gap-4">
             <div className="flex items-center">
-              <span className="font-semibold">
+              <span className="sm:font-semibold">
                 We now have a Discord server! Join now to get support and
                 discuss Windows on ARM with other users.
               </span>
@@ -138,6 +138,7 @@ export default function Home() {
               href="https://discord.gg/8EVWtctVEk"
               target="_blank"
               rel="noopener noreferrer"
+              className=""
               appearance="primary"
               icon={<SiDiscord />}
             >

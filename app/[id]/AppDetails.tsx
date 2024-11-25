@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Avatar,
   Body1,
@@ -24,6 +24,8 @@ import {
   ToastTitle,
   tokens,
   useToastController,
+  Caption1,
+  Rating,
 } from "@fluentui/react-components";
 import {
   ArrowReplyRegular,
@@ -59,6 +61,7 @@ import {
   FileUploadRequest,
   FileUploadResponse,
 } from "@/app/api/v1/upload/route";
+import Reviews from "./Reviews";
 
 const useStyles = makeStyles({
   heroTitle: {
@@ -94,6 +97,14 @@ type EditPostRequest = z.infer<typeof formSchema>;
 interface AppDetailsContentProps {
   app: FullPost;
   info: InfoResponse;
+}
+
+interface Review {
+  id: string;
+  rating: number;
+  comment?: string;
+  user_id: string;
+  created_at: string;
 }
 
 export default function AppDetailsContent({
@@ -176,7 +187,7 @@ export default function AppDetailsContent({
 
         setTimeout(() => {
           location.reload();
-        }, 5000);
+        }, 2000);
       } else {
         notify("Error updating post", response.error, "error");
       }
@@ -281,6 +292,8 @@ export default function AppDetailsContent({
                 </div>
               </Card>
             )}
+
+            <Reviews postId={app.id} />
 
             <ForumMessages postId={app.id} />
 
