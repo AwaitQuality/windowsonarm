@@ -1,8 +1,10 @@
 import React from "react";
 import { Metadata } from "next";
 import { getAppById } from "@/lib/api";
-import AppDetails from "./AppDetails";
 import { getInfo } from "@/lib/backend/info";
+import { Container } from "@/components/ui/container";
+import AppHeader from "./app-header";
+import AppContent from "./app-content";
 
 export const runtime = "edge";
 
@@ -27,15 +29,20 @@ export async function generateMetadata({
   };
 }
 
-export default async function AppDetailsPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const app = JSON.parse(JSON.stringify(await getAppById(params.id)));
-  const info = await getInfo();
+export default async function AppPage({ params }: { params: { id: string } }) {
+  const [app, info] = await Promise.all([getAppById(params.id), getInfo()]);
 
   if (!app) return <div>App not found: {params.id}</div>;
 
-  return <AppDetails app={app} info={info} />;
+  const serializedApp = JSON.parse(JSON.stringify(app));
+  const serializedInfo = JSON.parse(JSON.stringify(info));
+
+  return (
+    <div className="min-h-screen">
+      <AppHeader app={serializedApp} />
+      <Container>
+        <AppContent app={serializedApp} info={serializedInfo} />
+      </Container>
+    </div>
+  );
 }

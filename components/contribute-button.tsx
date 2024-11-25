@@ -222,15 +222,20 @@ const ContributeButton: React.FC<ContributeButtonProps> = ({ query }) => {
                   label={"Status"}
                   name={"status_hint"}
                   description={
-                    "Select a status hint for the application. Please don't submit an app if you're not sure about the status."
+                    "Select a status hint for the application. If you're not sure about the status, select 'Ask community to test'."
                   }
                 >
                   <option value={""}>Select a status hint</option>
-                  {info?.status.filter(s => s.id >= 0).map((status) => (
-                    <option key={status.id} value={status.id}>
-                      {status.name}
-                    </option>
-                  ))}
+                  <option key={-1} value={-1}>
+                    Ask community to test
+                  </option>
+                  {info?.status
+                    .filter((s) => s.id >= 0)
+                    .map((status) => (
+                      <option key={status.id} value={status.id}>
+                        {status.name}
+                      </option>
+                    ))}
                 </SelectField>
 
                 <InputTextArea

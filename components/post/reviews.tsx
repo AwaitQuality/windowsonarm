@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Avatar,
   Body1,
@@ -13,6 +13,7 @@ import {
   DialogSurface,
   DialogTitle,
   makeStyles,
+  Spinner,
   Subtitle1,
   Text,
   Toast,
@@ -32,6 +33,7 @@ import { useUser } from "@clerk/nextjs";
 import { aqApi } from "@/lib/axios/api";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { useMutation, useQuery, useQueryClient } from "react-query";
 
 dayjs.extend(relativeTime);
 
@@ -176,18 +178,22 @@ interface Review {
   };
 }
 
+interface ReviewResponse {
+  data: Review[];
+}
+
 const MAX_REVIEW_LENGTH = 2000;
 
 export default function Reviews({ postId }: { postId: string }) {
   const styles = useStyles();
   const { user, isSignedIn } = useUser();
-  const [reviews, setReviews] = useState<Review[]>([]);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [editingReview, setEditingReview] = useState<Review | null>(null);
   const { dispatchToast } = useToastController();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const queryClient = useQueryClient();
+  const isAdmin = user?.publicMetadata?.role === "admin";
 
   const notify = (
     title: string,
@@ -202,22 +208,67 @@ export default function Reviews({ postId }: { postId: string }) {
       { intent },
     );
 
-  useEffect(() => {
-    loadReviews();
-  }, [postId]);
-
-  useEffect(() => {
-    if (user?.publicMetadata?.role === "admin") {
-      setIsAdmin(true);
+  const { data: reviews = [], isLoading } = useQuery<Review[]>(
+    ["reviews", postId],
+    async () => {
+      const response = await aqApi.get<Review[]>(`/api/v1/posts/${postId}/reviews`);
+      if (!response.success) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60,
     }
-  }, [user]);
+  );
 
-  const loadReviews = async () => {
-    const response = await aqApi.get(`/api/v1/posts/${postId}/reviews`);
-    if (response.success) {
-      setReviews(response.data as Review[]);
+  const submitReviewMutation = useMutation<Review, Error, { rating: number; comment?: string }>(
+    async ({ rating, comment }) => {
+      const response = await aqApi.post<Review>(`/api/v1/posts/${postId}/reviews`, {
+        rating,
+        comment: comment?.trim() || undefined,
+      });
+      if (!response.success) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    {
+      onSuccess: () => {
+        notify(editingReview ? "Review updated successfully" : "Review submitted successfully");
+        setIsReviewDialogOpen(false);
+        setRating(0);
+        setComment("");
+        setEditingReview(null);
+        queryClient.invalidateQueries(["reviews", postId]);
+      },
+      onError: (error: Error) => {
+        notify("Error submitting review", error.message, "error");
+      },
     }
-  };
+  );
+
+  const deleteReviewMutation = useMutation(
+    async (reviewId: string) => {
+      const response = await aqApi.delete(
+        `/api/v1/posts/${postId}/reviews?reviewId=${reviewId}`,
+      );
+      if (!response.success) {
+        throw new Error(response.error);
+      }
+      return response.data;
+    },
+    {
+      onSuccess: () => {
+        notify("Review deleted successfully");
+        queryClient.invalidateQueries(["reviews", postId]);
+      },
+      onError: (error: Error) => {
+        notify("Error deleting review", error.message, "error");
+      },
+    },
+  );
 
   const handleEditClick = (review: Review) => {
     setEditingReview(review);
@@ -226,54 +277,35 @@ export default function Reviews({ postId }: { postId: string }) {
     setIsReviewDialogOpen(true);
   };
 
-  const handleSubmitReview = async () => {
-    try {
-      const response = await aqApi.post(`/api/v1/posts/${postId}/reviews`, {
-        rating,
-        comment: comment.trim() || undefined,
-      });
+  const handleSubmitReview = () => {
+    submitReviewMutation.mutate({ rating, comment });
+  };
 
-      if (response.success) {
-        notify(
-          editingReview
-            ? "Review updated successfully"
-            : "Review submitted successfully",
-        );
-        setIsReviewDialogOpen(false);
-        setRating(0);
-        setComment("");
-        setEditingReview(null);
-        loadReviews();
-      }
-    } catch (error) {
-      notify("Error submitting review", (error as Error).message, "error");
+  const handleDeleteReview = (reviewId: string) => {
+    if (window.confirm("Are you sure you want to delete this review?")) {
+      deleteReviewMutation.mutate(reviewId);
     }
   };
 
-  const handleDeleteReview = async (reviewId: string) => {
-    try {
-      const response = await aqApi.delete(
-        `/api/v1/posts/${postId}/reviews?reviewId=${reviewId}`,
-      );
-
-      if (response.success) {
-        notify("Review deleted successfully");
-        loadReviews();
-      }
-    } catch (error) {
-      notify("Error deleting review", (error as Error).message, "error");
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className={styles.root}>
+        <div className="flex justify-center items-center h-32">
+          <Spinner size="medium" label="Loading reviews..." />
+        </div>
+      </div>
+    );
+  }
 
   const averageRating = reviews.length
-    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+    ? reviews.reduce((sum: number, r: Review) => sum + r.rating, 0) / reviews.length
     : 0;
 
-  const userReview = reviews.find((review) => review.user_id === user?.id);
+  const userReview = reviews.find((review: Review) => review.user_id === user?.id);
 
   // Calculate rating distribution
   const ratingDistribution = Array.from({ length: 5 }, (_, i) => {
-    const count = reviews.filter((r) => r.rating === 5 - i).length;
+    const count = reviews.filter((r: Review) => r.rating === 5 - i).length;
     const percentage = reviews.length ? (count / reviews.length) * 100 : 0;
     return { stars: 5 - i, count, percentage };
   });
@@ -294,7 +326,7 @@ export default function Reviews({ postId }: { postId: string }) {
   return (
     <div className={styles.root}>
       <div className={styles.header}>
-        <Subtitle1>Customer Reviews</Subtitle1>
+        <Subtitle1>Experience Reviews</Subtitle1>
         {isSignedIn && !userReview && (
           <Button
             appearance="primary"
@@ -381,17 +413,14 @@ export default function Reviews({ postId }: { postId: string }) {
                         <Button
                           icon={<DeleteRegular />}
                           appearance="subtle"
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                "Are you sure you want to delete this review?",
-                              )
-                            ) {
-                              handleDeleteReview(review.id);
-                            }
-                          }}
+                          onClick={() => handleDeleteReview(review.id)}
+                          disabled={deleteReviewMutation.isLoading}
                         >
-                          Delete
+                          {deleteReviewMutation.isLoading ? (
+                            <Spinner size="tiny" />
+                          ) : (
+                            "Delete"
+                          )}
                         </Button>
                       )}
                     </div>
@@ -520,9 +549,15 @@ export default function Reviews({ postId }: { postId: string }) {
               <Button
                 appearance="primary"
                 onClick={handleSubmitReview}
-                disabled={rating === 0}
+                disabled={rating === 0 || submitReviewMutation.isLoading}
               >
-                {editingReview ? "Update Review" : "Submit Review"}
+                {submitReviewMutation.isLoading ? (
+                  <Spinner size="tiny" />
+                ) : editingReview ? (
+                  "Update Review"
+                ) : (
+                  "Submit Review"
+                )}
               </Button>
             </DialogActions>
           </DialogBody>

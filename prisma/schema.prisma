@@ -9,12 +9,12 @@ datasource db {
 }
 
 model Post {
-  id                    String   @id @default(uuid())
+  id                    String       @id @default(uuid())
   categoryId            String
   title                 String
   company               String
   user_id               String?
-  status_id             Int      @map("status")
+  status_id             Int          @map("status")
   status_hint           Int?
   description           String
   tags                  Tag[]
@@ -23,13 +23,14 @@ model Post {
   banner_url            String?
   icon_url              String?
   discord_forum_post_id String?
-  created_at            DateTime @default(now())
-  updated_at            DateTime @default(now())
+  created_at            DateTime     @default(now())
+  updated_at            DateTime     @default(now())
   update_description    String?
-  category              Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  status                Status   @relation(fields: [status_id], references: [id])
+  category              Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  status                Status       @relation(fields: [status_id], references: [id])
   upvotes               Upvote[]
   reviews               Review[]
+  status_votes          StatusVote[]
 
   @@index([categoryId])
   @@index([status_id])
@@ -57,13 +58,14 @@ model Upvote {
 }
 
 model Status {
-  id    Int    @id @default(autoincrement())
-  index Int    @default(0) @map("idx")
-  name  String @unique
-  color String
-  text  String
-  icon  String
-  posts Post[]
+  id         Int          @id @default(autoincrement())
+  index      Int          @default(0) @map("idx")
+  name       String       @unique
+  color      String
+  text       String
+  icon       String
+  posts      Post[]
+  StatusVote StatusVote[]
 
   @@index([name])
 }
@@ -79,15 +81,30 @@ model Category {
 }
 
 model Review {
-  id          String   @id @default(uuid())
-  post_id     String
-  user_id     String
-  rating      Int      // 1-5 stars
-  comment     String?  // Optional review text
-  created_at  DateTime @default(now())
-  updated_at  DateTime @default(now())
-  post        Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  post_id    String
+  user_id    String
+  rating     Int // 1-5 stars
+  comment    String? // Optional review text
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
 
   @@index([post_id])
   @@index([user_id])
+}
+
+model StatusVote {
+  id         String   @id @default(uuid())
+  post_id    String
+  user_id    String
+  status_id  Int
+  created_at DateTime @default(now())
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  status     Status   @relation(fields: [status_id], references: [id])
+
+  @@unique([post_id, user_id])
+  @@index([post_id])
+  @@index([user_id])
+  @@index([status_id])
 }
