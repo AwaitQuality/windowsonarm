@@ -7,6 +7,11 @@ import { getRequestContext } from "@cloudflare/next-on-pages";
 
 export const runtime = "edge";
 
+// Add interface for request body
+interface VoteStatusRequest {
+  status_id: number;
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -17,8 +22,13 @@ export async function POST(
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as VoteStatusRequest;
     const { status_id } = body;
+
+    // Validate status_id
+    if (typeof status_id !== 'number') {
+      return ErrorResponse.json("Invalid status_id", { status: 400 });
+    }
 
     const { env } = getRequestContext();
     const prisma = getPrisma(env.DB);
