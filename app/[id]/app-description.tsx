@@ -1,7 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { Card, Link as FluentLink, Subtitle1, Tag } from "@fluentui/react-components";
+import {
+  Card,
+  Link as FluentLink,
+  Subtitle1,
+  Tag,
+} from "@fluentui/react-components";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import GlobalMarkdown from "@/components/markdown";
 
@@ -23,7 +28,9 @@ export default function AppDescription({ app }: AppDescriptionProps) {
           {app.description.slice(0, 820) +
             (app.description.length > 820 && !expanded ? "..." : "")}
         </GlobalMarkdown>
-        {expanded && <GlobalMarkdown>{app.description.slice(820)}</GlobalMarkdown>}
+        {expanded && (
+          <GlobalMarkdown>{app.description.slice(820)}</GlobalMarkdown>
+        )}
         {app.description.length > 820 && (
           <div className="mt-4">
             <FluentLink onClick={() => setExpanded(!expanded)}>
@@ -51,4 +58,4 @@ export default function AppDescription({ app }: AppDescriptionProps) {
       )}
     </>
   );
-} 
+}

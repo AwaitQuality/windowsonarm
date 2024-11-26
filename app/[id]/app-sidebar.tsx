@@ -26,7 +26,6 @@ import {
   ArrowReplyRegular,
   LinkRegular,
   ArrowLeftRegular,
-  EditRegular,
   DeleteRegular,
 } from "@fluentui/react-icons";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
@@ -37,6 +36,7 @@ import { useUser } from "@clerk/nextjs";
 import dayjs from "dayjs";
 import { aqApi } from "@/lib/axios/api";
 import StatusVote from "@/components/post/status-vote";
+import EditPost from "@/components/post/edit-post";
 
 interface AppSidebarProps {
   app: FullPost;
@@ -175,11 +175,7 @@ export default function AppSidebar({ app, info }: AppSidebarProps) {
           </Link>
           {isEditable && (
             <>
-              <Link href={`/${app.id}/edit`} passHref className="block">
-                <Button icon={<EditRegular />} className="w-full">
-                  Edit Post
-                </Button>
-              </Link>
+              <EditPost post={app} info={info} className="w-full" />
               <Button
                 icon={<DeleteRegular />}
                 onClick={() => setIsDeleteDialogOpen(true)}
