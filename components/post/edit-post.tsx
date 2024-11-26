@@ -42,7 +42,7 @@ const formSchema = z.object({
   title: z.string().max(255),
   company: z.string().max(255),
   description: z.string(),
-  tags: z.array(z.string()).max(3).optional(),
+  tags: z.array(z.string()).max(15).optional(),
   app_url: z.string().url().optional().or(z.literal("")),
   banner_url: z.string().optional().or(z.literal("")),
   icon_url: z.string().optional().or(z.literal("")),
