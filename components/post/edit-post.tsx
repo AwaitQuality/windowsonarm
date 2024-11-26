@@ -14,6 +14,9 @@ import {
   ToastIntent,
   ToastTitle,
   useToastController,
+  Text,
+  Card,
+  Label,
 } from "@fluentui/react-components";
 import { EditRegular } from "@fluentui/react-icons";
 import { useUser } from "@clerk/nextjs";
@@ -223,6 +226,17 @@ export default function EditPost({ post, info, className }: EditPostProps) {
                       </option>
                     ))}
                   </SelectField>
+                  <div className="flex flex-col gap-2">
+                    <Label size={"medium"}>Original Status Hint</Label>
+                    <Card appearance="outline" size="small">
+                      <Text>
+                        {post.status_hint === -1
+                          ? "Ask community to test"
+                          : info?.status.find((s) => s.id === post.status_hint)
+                              ?.name || "No status hint"}
+                      </Text>
+                    </Card>
+                  </div>
                 </DialogContent>
                 <DialogActions>
                   <Button
