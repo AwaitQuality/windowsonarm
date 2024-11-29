@@ -60,6 +60,7 @@
     "react-model": "^4.3.1",
     "react-query": "^3.39.3",
     "react-share": "^5.1.0",
+    "recharts": "^2.13.3",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
     "remark-breaks": "^4.0.0",

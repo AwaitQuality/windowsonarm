@@ -7,6 +7,7 @@ import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { auth, clerkClient, getAuth } from "@clerk/nextjs/server";
 import axios from "axios";
+import { z } from "zod";
 
 export const runtime = "edge";
 
@@ -17,6 +18,29 @@ export interface PostsResponse {
   posts: FullPost[];
   nextCursor: string | null;
 }
+
+// Add validation schema for POST requests
+const createPostSchema = z.object({
+  title: z.string().max(255),
+  company: z.string().max(255),
+  description: z.string().min(50),
+  tags: z.array(z.string()).max(10).optional(),
+  app_url: z.string()
+    .url({ message: "Please enter a valid URL" })
+    .optional()
+    .or(z.literal("")),
+  community_url: z.string()
+    .url({ message: "Please enter a valid URL" })
+    .optional()
+    .or(z.literal("")),
+  banner_url: z.string()
+    .url({ message: "Please enter a valid URL" })
+    .optional()
+    .or(z.literal("")),
+  status_hint: z.string(),
+  icon_url: z.string().optional(),
+  categoryId: z.string(),
+});
 
 export async function GET(request: NextRequest) {
   try {
@@ -136,9 +160,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const postRequest = (await request.json()) as postRequest & {
-      tags: string[];
-    };
+    const postRequest = await request.json();
+    
+    // Validate request data
+    const validatedData = createPostSchema.parse(postRequest);
 
     const userId = auth().userId;
 
@@ -161,9 +186,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create or find tags
-    const tagObjects = postRequest.tags
+    const tagObjects = validatedData.tags
       ? await Promise.all(
-          postRequest.tags.map(async (tagName) => {
+          validatedData.tags.map(async (tagName) => {
             const existingTag = await prisma.tag.findFirst({
               where: { name: tagName },
             });
@@ -181,15 +206,16 @@ export async function POST(request: NextRequest) {
 
     const post = await prisma.post.create({
       data: {
-        title: postRequest.title,
-        description: postRequest.description,
-        company: postRequest.company,
-        categoryId: postRequest.categoryId,
-        app_url: postRequest.app_url,
-        banner_url: postRequest.banner_url,
-        icon_url: postRequest.icon_url,
-        status_hint: postRequest.status_hint
-          ? parseInt(postRequest.status_hint)
+        title: validatedData.title,
+        description: validatedData.description,
+        company: validatedData.company,
+        categoryId: validatedData.categoryId,
+        app_url: validatedData.app_url || null,
+        community_url: validatedData.community_url || null,
+        banner_url: validatedData.banner_url || null,
+        icon_url: validatedData.icon_url || null,
+        status_hint: validatedData.status_hint
+          ? parseInt(validatedData.status_hint)
           : null,
         status_id: -1,
         user_id: userId,

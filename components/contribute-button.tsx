@@ -33,14 +33,25 @@ import {
   FileUploadRequest,
   FileUploadResponse,
 } from "@/app/api/v1/upload/route";
+import { useRouter } from "next/navigation";
 
 export const postSchema = z.object({
   title: z.string().max(255),
   company: z.string().max(255),
   description: z.string().min(50),
   tags: z.array(z.string()).max(10).optional(),
-  app_url: z.string().optional(),
-  banner_url: z.string().optional(),
+  app_url: z.string()
+    .url({ message: "Please enter a valid URL" })
+    .optional()
+    .or(z.literal("")),
+  community_url: z.string()
+    .url({ message: "Please enter a valid URL" })
+    .optional()
+    .or(z.literal("")),
+  banner_url: z.string()
+    .url({ message: "Please enter a valid URL" })
+    .optional()
+    .or(z.literal("")),
   status_hint: z.string(),
   icon_url: z.string().optional(),
   categoryId: z.string(),
@@ -57,6 +68,7 @@ const ContributeButton: React.FC<ContributeButtonProps> = ({ query }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { dispatchToast } = useToastController("toaster");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const router = useRouter();
 
   const form = useForm<postRequest>({
     resolver: zodResolver(postSchema),
@@ -112,7 +124,7 @@ const ContributeButton: React.FC<ContributeButtonProps> = ({ query }) => {
         values.icon_url = await uploadFile(selectedFile);
       }
 
-      const response = await aqApi.post("/api/v1/posts", values);
+      const response = await aqApi.post<{ id: string }>("/api/v1/posts", values);
 
       if (!response.success) {
         notify("Failed to post application", response.error, "error");
@@ -126,6 +138,8 @@ const ContributeButton: React.FC<ContributeButtonProps> = ({ query }) => {
         "success",
       );
       setDialogOpen(false);
+      
+      router.push(`/${response.data.id}`);
     } catch (error) {
       notify("Failed to post application", (error as Error).message, "error");
     }
@@ -183,6 +197,13 @@ const ContributeButton: React.FC<ContributeButtonProps> = ({ query }) => {
                   formControl={form.control}
                   label={"App URL"}
                   name={"app_url"}
+                />
+                <InputField
+                  placeholder={"https://example.com"}
+                  formControl={form.control}
+                  label={"Community URL"}
+                  name={"community_url"}
+                  description="URL to community-made ARM version or compatibility fix"
                 />
                 <InputField
                   placeholder={"https://example.com/banner.png"}

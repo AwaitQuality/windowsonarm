@@ -31,6 +31,7 @@ model Post {
   upvotes               Upvote[]
   reviews               Review[]
   status_votes          StatusVote[]
+  views                 View[]
 
   @@index([categoryId])
   @@index([status_id])
@@ -107,4 +108,16 @@ model StatusVote {
   @@index([post_id])
   @@index([user_id])
   @@index([status_id])
+}
+
+model View {
+  id         String   @id @default(uuid())
+  post_id    String
+  ip_address String
+  created_at DateTime @default(now())
+  post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
+
+  @@unique([post_id, ip_address])
+  @@index([post_id])
+  @@index([ip_address])
 }

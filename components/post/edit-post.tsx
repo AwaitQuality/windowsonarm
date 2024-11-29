@@ -44,6 +44,7 @@ const formSchema = z.object({
   description: z.string(),
   tags: z.array(z.string()).max(15).optional(),
   app_url: z.string().url().optional().or(z.literal("")),
+  community_url: z.string().url().optional().or(z.literal("")),
   banner_url: z.string().optional().or(z.literal("")),
   icon_url: z.string().optional().or(z.literal("")),
   status_id: z.coerce.number(),
@@ -73,6 +74,7 @@ export default function EditPost({ post, info, className }: EditPostProps) {
       description: post.description,
       tags: post.tags.map((tag) => tag.name),
       app_url: post.app_url || "",
+      community_url: post.community_url || "",
       banner_url: post.banner_url || "",
       icon_url: post.icon_url || "",
       categoryId: post.categoryId,
@@ -177,6 +179,13 @@ export default function EditPost({ post, info, className }: EditPostProps) {
                     formControl={form.control}
                     label="App URL"
                     name="app_url"
+                  />
+                  <InputField
+                    placeholder="https://example.com"
+                    formControl={form.control}
+                    label="Community URL"
+                    name="community_url"
+                    description="URL to community-made ARM version or compatibility fix"
                   />
                   <div>
                     <InputField

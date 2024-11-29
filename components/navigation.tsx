@@ -11,6 +11,7 @@ import {
 } from "@clerk/nextjs";
 import Link from "next/link";
 import { SiDiscord } from "@icons-pack/react-simple-icons";
+import { ChartMultipleRegular } from "@fluentui/react-icons";
 
 interface NavigationProps extends React.HTMLAttributes<HTMLDivElement> {}
 
@@ -38,6 +39,9 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
         </div>
         <div className={"flex gap-4 items-center"}>
           <div className="hidden sm:flex text-xs space-x-2 mr-4">
+            <Link href="/statistics" passHref>
+              <FluentLink>Statistics</FluentLink>
+            </Link>
             <Link href="/privacy-policy" passHref>
               <FluentLink>Privacy Policy</FluentLink>
             </Link>
@@ -59,13 +63,16 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
               <Button>Sign in</Button>
             </Link>
           </SignedOut>
-          <div className="sm:hidden"> {/* This div wraps the Menu component */}
+          <div className="sm:hidden">
             <Menu positioning="below-end">
               <MenuTrigger disableButtonEnhancement>
                 <Button icon={<MenuIcon />} />
               </MenuTrigger>
               <MenuPopover>
                 <MenuList>
+                  <MenuItem>
+                    <Link href="/statistics">Statistics</Link>
+                  </MenuItem>
                   <MenuItem>
                     <Link href="https://github.com/sponsors/OpenSource03">
                       Buy us a coffee
