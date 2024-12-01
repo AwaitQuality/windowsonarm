@@ -30,7 +30,10 @@ export async function generateMetadata({
 }
 
 export default async function AppPage({ params }: { params: { id: string } }) {
-  const [app, info] = await Promise.all([getAppById(params.id), getInfo()]);
+  const [app, info] = await Promise.all([
+    getAppById(params.id),
+    getInfo(),
+  ]);
 
   if (!app) return <div>App not found: {params.id}</div>;
 

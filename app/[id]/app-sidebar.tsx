@@ -14,7 +14,6 @@ import {
   DialogTitle,
   InfoLabel,
   LargeTitle,
-  Link as FluentLink,
   Subtitle1,
   Toast,
   ToastBody,
@@ -23,10 +22,11 @@ import {
   useToastController,
 } from "@fluentui/react-components";
 import {
-  ArrowReplyRegular,
-  LinkRegular,
   ArrowLeftRegular,
+  ArrowReplyRegular,
   DeleteRegular,
+  EyeRegular,
+  LinkRegular,
 } from "@fluentui/react-icons";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
@@ -116,6 +116,10 @@ export default function AppSidebar({ app, info }: AppSidebarProps) {
               <Body1>{app.update_description}</Body1>
             </div>
           )}
+          <div className="flex justify-end items-center gap-2 text-gray-500 pt-2 border-t border-neutral-500">
+            <EyeRegular />
+            <Body1>{app._count?.views || 0} views</Body1>
+          </div>
         </div>
       </Card>
 
@@ -222,4 +226,4 @@ export default function AppSidebar({ app, info }: AppSidebarProps) {
       )}
     </>
   );
-} 
+}

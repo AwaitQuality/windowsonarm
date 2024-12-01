@@ -11,4 +11,9 @@ export type FullPost = Post & { status: Status | null } & {
   tags: Tag[];
 } & {
   category: Category;
+} & {
+  _count: {
+    upvotes: number;
+    views: number;
+  };
 };

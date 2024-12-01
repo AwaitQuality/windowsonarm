@@ -89,7 +89,10 @@ export async function GET(request: NextRequest) {
           : false,
         category: true,
         _count: {
-          select: { upvotes: true },
+          select: { 
+            upvotes: true,
+            views: true,
+          },
         },
       },
       skip: cursor ? 1 : 0,
@@ -108,8 +111,12 @@ export async function GET(request: NextRequest) {
     const postsWithUpvoteStatus: FullPost[] = posts.map((post) => ({
       ...post,
       tags: [],
-      userUpvoted: false,
+      userUpvoted: post.upvotes?.length > 0,
       user: null,
+      _count: {
+        upvotes: post._count.upvotes,
+        views: post._count.views,
+      },
     }));
 
     const userIds = postsWithUpvoteStatus

@@ -11,9 +11,23 @@ export async function GET() {
 
     // Get total apps count
     const totalApps = await prisma.post.count();
+    const lastWeekNewApps = await prisma.post.count({
+      where: {
+        created_at: {
+          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        },
+      },
+    });
 
     // Get apps per status with percentages
-    const statusCounts = await prisma.$queryRaw<Array<{ status: string; count: number; percentage: number; color: string }>>`
+    const statusCounts = await prisma.$queryRaw<
+      Array<{
+        status: string;
+        count: number;
+        percentage: number;
+        color: string;
+      }>
+    >`
       SELECT 
         s.name as status,
         s.color as color,
@@ -26,7 +40,9 @@ export async function GET() {
     `;
 
     // Get apps per category with percentages
-    const categoryCounts = await prisma.$queryRaw<Array<{ category: string; count: number; percentage: number }>>`
+    const categoryCounts = await prisma.$queryRaw<
+      Array<{ category: string; count: number; percentage: number }>
+    >`
       SELECT 
         c.name as category,
         COUNT(*) as count,
@@ -38,7 +54,9 @@ export async function GET() {
     `;
 
     // Get top tags
-    const topTags = await prisma.$queryRaw<Array<{ tag: string; count: number }>>`
+    const topTags = await prisma.$queryRaw<
+      Array<{ tag: string; count: number }>
+    >`
       SELECT 
         t.name as tag,
         COUNT(*) as count
@@ -59,28 +77,30 @@ export async function GET() {
       prisma.post.count({
         where: {
           updated_at: {
-            gte: oneDayAgo
-          }
-        }
+            gte: oneDayAgo,
+          },
+        },
       }),
       prisma.post.count({
         where: {
           updated_at: {
-            gte: oneWeekAgo
-          }
-        }
+            gte: oneWeekAgo,
+          },
+        },
       }),
       prisma.post.count({
         where: {
           updated_at: {
-            gte: oneMonthAgo
-          }
-        }
-      })
+            gte: oneMonthAgo,
+          },
+        },
+      }),
     ]);
 
     // Get status changes in last 7 days
-    const recentStatusChanges = await prisma.$queryRaw<Array<{ status: string; count: number; color: string }>>`
+    const recentStatusChanges = await prisma.$queryRaw<
+      Array<{ status: string; count: number; color: string }>
+    >`
       SELECT 
         s.name as status,
         s.color as color,
@@ -93,7 +113,9 @@ export async function GET() {
     `;
 
     // Get most active categories (categories with most updates in last 30 days)
-    const activeCategories = await prisma.$queryRaw<Array<{ category: string; count: number }>>`
+    const activeCategories = await prisma.$queryRaw<
+      Array<{ category: string; count: number }>
+    >`
       SELECT 
         c.name as category,
         COUNT(*) as count
@@ -106,7 +128,9 @@ export async function GET() {
     `;
 
     // Get average rating and total reviews
-    const reviewStats = await prisma.$queryRaw<Array<{ avg_rating: number; total_reviews: number }>>`
+    const reviewStats = await prisma.$queryRaw<
+      Array<{ avg_rating: number; total_reviews: number }>
+    >`
       SELECT 
         ROUND(AVG(CAST(rating AS FLOAT)), 1) as avg_rating,
         COUNT(*) as total_reviews
@@ -114,7 +138,9 @@ export async function GET() {
     `;
 
     // Get recent review statistics
-    const recentReviews = await prisma.$queryRaw<Array<{ avg_rating: number; total_reviews: number }>>`
+    const recentReviews = await prisma.$queryRaw<
+      Array<{ avg_rating: number; total_reviews: number }>
+    >`
       SELECT 
         ROUND(AVG(CAST(rating AS FLOAT)), 1) as avg_rating,
         COUNT(*) as total_reviews
@@ -123,7 +149,9 @@ export async function GET() {
     `;
 
     // Get most reviewed apps
-    const mostReviewedApps = await prisma.$queryRaw<Array<{ title: string; review_count: number; avg_rating: number }>>`
+    const mostReviewedApps = await prisma.$queryRaw<
+      Array<{ title: string; review_count: number; avg_rating: number }>
+    >`
       SELECT 
         p.title,
         COUNT(*) as review_count,
@@ -136,7 +164,9 @@ export async function GET() {
     `;
 
     // Get upvote statistics
-    const upvoteStats = await prisma.$queryRaw<Array<{ title: string; upvotes: number }>>`
+    const upvoteStats = await prisma.$queryRaw<
+      Array<{ title: string; upvotes: number }>
+    >`
       SELECT 
         p.title,
         COUNT(*) as upvotes
@@ -147,17 +177,47 @@ export async function GET() {
       LIMIT 5
     `;
 
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    
+    // Get daily activity for last 30 days
+    const dailyActivity = await prisma.post.groupBy({
+      by: ['created_at'],
+      _count: {
+        id: true
+      },
+      where: {
+        created_at: {
+          gte: thirtyDaysAgo
+        }
+      },
+      orderBy: {
+        created_at: 'asc'
+      }
+    });
+
+    // Format daily activity into array of {date, count} objects
+    const dailyActivityData = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split('T')[0];
+      const activity = dailyActivity.find(d => d.created_at.toISOString().startsWith(dateStr));
+      return {
+        date: dateStr,
+        count: activity ? activity._count.id : 0
+      };
+    });
+
     return NextResponse.json({
       success: true,
       data: {
         totalApps,
+        lastWeekNewApps,
         appsPerStatus: statusCounts,
         appsPerCategory: categoryCounts,
         topTags,
         recentActivity: {
           lastDay,
           lastWeek,
-          lastMonth
+          lastMonth,
         },
         recentStatusChanges,
         activeCategories,
@@ -165,11 +225,12 @@ export async function GET() {
         totalReviews: reviewStats[0]?.total_reviews || 0,
         recentReviews: {
           averageRating: recentReviews[0]?.avg_rating || 0,
-          totalReviews: recentReviews[0]?.total_reviews || 0
+          totalReviews: recentReviews[0]?.total_reviews || 0,
         },
         mostReviewedApps,
-        upvoteStats
-      }
+        upvoteStats,
+        dailyActivity: dailyActivityData,
+      },
     });
   } catch (error) {
     console.error("Error fetching statistics:", error);
@@ -178,4 +239,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-} 
+}

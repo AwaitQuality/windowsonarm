@@ -2,15 +2,37 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { headers } from "next/headers";
 
 export const getAppById = async (id: string): Promise<FullPost | null> => {
   const userId = auth().userId;
-
   const { env } = getRequestContext();
-
   const prisma = getPrisma(env.DB);
 
   try {
+    // Track view
+    const headersList = headers();
+    const ip = headersList.get("x-forwarded-for") || 
+               headersList.get("x-real-ip") || 
+               "unknown";
+
+    // Create view record if it doesn't exist for this IP and post
+    const viewExists = await prisma.view.findFirst({
+      where: {
+        post_id: id,
+        ip_address: ip,
+      },
+    });
+
+    if (!viewExists) {
+      await prisma.view.create({
+        data: {
+          post_id: id,
+          ip_address: ip,
+        },
+      });
+    }
+
     const post = await prisma.post.findUnique({
       where: { id },
       include: {
@@ -26,7 +48,10 @@ export const getAppById = async (id: string): Promise<FullPost | null> => {
           : false,
         category: true,
         _count: {
-          select: { upvotes: true },
+          select: { 
+            upvotes: true,
+            views: true, // Include view count
+          },
         },
       },
     });

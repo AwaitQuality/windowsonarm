@@ -27,7 +27,7 @@ export default function GlobalMarkdown({ children }: GlobalMarkdownProps) {
         h3: ({ children }) => (
           <Caption1 className="mb-2 mt-4 font-semibold">{children}</Caption1>
         ),
-        p: ({ children }) => <Body1 className="mb-4">{children}</Body1>,
+        p: ({ children }) => <Body1>{children}</Body1>,
         a: ({ children, href }) => <FluentLink href={href}>{children}</FluentLink>,
         ul: ({ children }) => <ul className="list-disc pl-6 mb-4">{children}</ul>,
         ol: ({ children }) => <ol className="list-decimal pl-6 mb-4">{children}</ol>,

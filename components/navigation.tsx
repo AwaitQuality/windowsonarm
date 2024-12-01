@@ -1,7 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { Button, Link as FluentLink, Menu, MenuTrigger, MenuList, MenuItem, MenuPopover } from "@fluentui/react-components";
-import { Coffee, Github, Menu as MenuIcon } from "lucide-react";
+import { Coffee, Github, Menu as MenuIcon, Home } from "lucide-react";
 import {
   ClerkLoading,
   GoogleOneTap,
@@ -10,22 +10,41 @@ import {
   UserButton,
 } from "@clerk/nextjs";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SiDiscord } from "@icons-pack/react-simple-icons";
 import { ChartMultipleRegular } from "@fluentui/react-icons";
 
 interface NavigationProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 const Navigation = ({ className, ...props }: NavigationProps) => {
+  const pathname = usePathname();
+
   return (
     <>
       <div
         className={cn(
-          "w-full flex justify-between items-center gap-2 p-4",
+          "w-full flex justify-between items-center gap-2",
           className,
         )}
         {...props}
       >
         <div className={"flex gap-2 flex-wrap"}>
+          <Link href="/" passHref>
+            <Button 
+              icon={<Home size={20} />}
+              appearance={pathname === "/" ? "primary" : "secondary"}
+            >
+              Home
+            </Button>
+          </Link>
+          <Link href="/statistics" passHref>
+            <Button 
+              icon={<ChartMultipleRegular />}
+              appearance={pathname === "/statistics" ? "primary" : "secondary"}
+            >
+              Statistics
+            </Button>
+          </Link>
           <Link href="https://github.com/AwaitQuality/windowsonarm">
             <Button icon={<Github size={20} color={"#ADADAD"} />}>
               Contribute on Github
@@ -39,9 +58,6 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
         </div>
         <div className={"flex gap-4 items-center"}>
           <div className="hidden sm:flex text-xs space-x-2 mr-4">
-            <Link href="/statistics" passHref>
-              <FluentLink>Statistics</FluentLink>
-            </Link>
             <Link href="/privacy-policy" passHref>
               <FluentLink>Privacy Policy</FluentLink>
             </Link>
@@ -71,7 +87,26 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
               <MenuPopover>
                 <MenuList>
                   <MenuItem>
-                    <Link href="/statistics">Statistics</Link>
+                    <Link href="/" className="w-full">
+                      <Button 
+                        icon={<Home size={20} />}
+                        appearance={pathname === "/" ? "primary" : "secondary"}
+                        className="w-full"
+                      >
+                        Home
+                      </Button>
+                    </Link>
+                  </MenuItem>
+                  <MenuItem>
+                    <Link href="/statistics" className="w-full">
+                      <Button 
+                        icon={<ChartMultipleRegular />}
+                        appearance={pathname === "/statistics" ? "primary" : "secondary"}
+                        className="w-full"
+                      >
+                        Statistics
+                      </Button>
+                    </Link>
                   </MenuItem>
                   <MenuItem>
                     <Link href="https://github.com/sponsors/OpenSource03">
