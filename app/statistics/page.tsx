@@ -49,70 +49,64 @@ import {
 } from "recharts";
 
 interface StatisticsResponse {
-  success: boolean;
-  error?: string;
-  data: {
-    totalApps: number;
-    appsPerStatus: Array<{
-      status: string;
-      count: number;
-      percentage: number;
-      color: string;
-    }>;
-    appsPerCategory: Array<{
-      category: string;
-      count: number;
-      percentage: number;
-    }>;
-    topTags: Array<{
-      tag: string;
-      count: number;
-    }>;
-    recentActivity: {
-      lastDay: number;
-      lastWeek: number;
-      lastMonth: number;
-    };
-    recentStatusChanges: Array<{
-      status: string;
-      count: number;
-      color: string;
-    }>;
-    activeCategories: Array<{
-      category: string;
-      count: number;
-    }>;
+  totalApps: number;
+  appsPerStatus: Array<{
+    status: string;
+    count: number;
+    percentage: number;
+    color: string;
+  }>;
+  appsPerCategory: Array<{
+    category: string;
+    count: number;
+    percentage: number;
+  }>;
+  topTags: Array<{
+    tag: string;
+    count: number;
+  }>;
+  recentActivity: {
+    lastDay: number;
+    lastWeek: number;
+    lastMonth: number;
+  };
+  recentStatusChanges: Array<{
+    status: string;
+    count: number;
+    color: string;
+  }>;
+  activeCategories: Array<{
+    category: string;
+    count: number;
+  }>;
+  averageRating: number;
+  totalReviews: number;
+  recentReviews: {
     averageRating: number;
     totalReviews: number;
-    recentReviews: {
-      averageRating: number;
-      totalReviews: number;
-    };
-    mostReviewedApps: Array<{
-      title: string;
-      review_count: number;
-      avg_rating: number;
-    }>;
-    upvoteStats: Array<{
-      title: string;
-      upvotes: number;
-    }>;
   };
+  mostReviewedApps: Array<{
+    title: string;
+    review_count: number;
+    avg_rating: number;
+  }>;
+  upvoteStats: Array<{
+    title: string;
+    upvotes: number;
+  }>;
 }
 
 export default function Statistics() {
-  const { data: response, isLoading, error } = useQuery<StatisticsResponse>(
+  const { data, isLoading, error } = useQuery<StatisticsResponse>(
     ["statistics"],
     async () => {
       const response = await aqApi.get<StatisticsResponse>("/api/v1/statistics");
       if (!response.success) {
         throw new Error(response.error);
       }
-      return response;
+      return response.data;
     }
   );
-
-  const data = response?.data;
 
   if (isLoading) {
     return (

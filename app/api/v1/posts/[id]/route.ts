@@ -13,7 +13,7 @@ const updatePostSchema = z.object({
   title: z.string().max(255),
   company: z.string().max(255),
   description: z.string(),
-  tags: z.array(z.string()).max(3).optional(),
+  tags: z.array(z.string()).max(15).optional(),
   app_url: z.string().url().optional().nullable(),
   community_url: z.string().url().optional().nullable(),
   banner_url: z.string().optional().nullable(),
@@ -99,7 +99,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { id: string } },
 ) {
   try {
     const { userId } = auth();
