@@ -1,10 +1,6 @@
 export interface StatisticsResponse {
   totalApps: number;
   lastWeekNewApps: number;
-  dailyActivity: Array<{
-    date: string;
-    count: number;
-  }>;
   appsPerStatus: Array<{
     status: string;
     count: number;
@@ -25,15 +21,6 @@ export interface StatisticsResponse {
     lastWeek: number;
     lastMonth: number;
   };
-  recentStatusChanges: Array<{
-    status: string;
-    count: number;
-    color: string;
-  }>;
-  activeCategories: Array<{
-    category: string;
-    count: number;
-  }>;
   averageRating: number;
   totalReviews: number;
   recentReviews: {
@@ -48,5 +35,13 @@ export interface StatisticsResponse {
   upvoteStats: Array<{
     title: string;
     upvotes: number;
+  }>;
+  dailyActivity: Array<{
+    date: string;
+    count: number;
+  }>;
+  mostViewedApps: Array<{
+    title: string;
+    view_count: number;
   }>;
 } 
