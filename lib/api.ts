@@ -4,7 +4,10 @@ import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { headers } from "next/headers";
 
-export const getAppById = async (id: string): Promise<FullPost | null> => {
+export const getAppById = async (
+  id: string,
+  logView: boolean = true,
+): Promise<FullPost | null> => {
   const userId = auth().userId;
   const { env } = getRequestContext();
   const prisma = getPrisma(env.DB);
@@ -12,25 +15,39 @@ export const getAppById = async (id: string): Promise<FullPost | null> => {
   try {
     // Track view
     const headersList = headers();
-    const ip = headersList.get("x-forwarded-for") || 
-               headersList.get("x-real-ip") || 
-               "unknown";
+    const ip =
+      headersList.get("x-forwarded-for") ||
+      headersList.get("x-real-ip") ||
+      "unknown";
 
-    // Create view record if it doesn't exist for this IP and post
-    const viewExists = await prisma.view.findFirst({
-      where: {
-        post_id: id,
-        ip_address: ip,
-      },
-    });
-
-    if (!viewExists) {
-      await prisma.view.create({
-        data: {
+    if (logView) {
+      // Create view record if it doesn't exist for this IP and post
+      const viewExists = await prisma.view.findFirst({
+        where: {
           post_id: id,
           ip_address: ip,
         },
       });
+
+      if (!viewExists) {
+        console.log(id);
+        try {
+          await prisma.view.create({
+            data: {
+              post_id: id,
+              ip_address: ip,
+            },
+          });
+        } catch (error: any) {
+          // Type the error as any to access properties
+          // Check if it's a Prisma error with code P2002 (unique constraint violation)
+          if (error?.code === "P2002") {
+            // View already exists, continue silently
+          } else {
+            throw error; // Re-throw if it's a different error
+          }
+        }
+      }
     }
 
     const post = await prisma.post.findUnique({
@@ -48,7 +65,7 @@ export const getAppById = async (id: string): Promise<FullPost | null> => {
           : false,
         category: true,
         _count: {
-          select: { 
+          select: {
             upvotes: true,
             views: true, // Include view count
           },

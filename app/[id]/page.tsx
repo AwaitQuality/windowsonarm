@@ -13,7 +13,7 @@ export async function generateMetadata({
 }: {
   params: { id: string };
 }): Promise<Metadata> {
-  const app = await getAppById(params.id);
+  const app = await getAppById(params.id, false);
 
   if (!app) {
     return {
