@@ -15,6 +15,7 @@ import { RecentStatusChangesCard } from "./components/RecentStatusChangesCard";
 import { StatusDistributionCard } from "./components/StatusDistributionCard";
 import { TopTagsCard } from "./components/TopTagsCard";
 import { MostUpvotedAppsCard } from "./components/MostUpvotedAppsCard";
+import { MostViewedAppsCard } from "./components/MostViewedAppsCard";
 import { StatisticsResponse } from "./types";
 
 export default function Statistics() {
@@ -77,8 +78,9 @@ export default function Statistics() {
           mostReviewedApps={data.mostReviewedApps}
           variant="chart"
         />
-        <RecentStatusChangesCard
-          recentStatusChanges={data.recentStatusChanges}
+        <MostViewedAppsCard
+          mostViewedApps={data.mostViewedApps}
+          variant="chart"
         />
       </div>
 
@@ -92,8 +94,11 @@ export default function Statistics() {
           mostReviewedApps={data.mostReviewedApps}
           variant="table"
         />
+        <MostViewedAppsCard
+          mostViewedApps={data.mostViewedApps}
+          variant="table"
+        />
         <MostUpvotedAppsCard upvoteStats={data.upvoteStats} />
-        <CategoryDistributionCard appsPerCategory={data.appsPerCategory} />
         <TopTagsCard topTags={data.topTags} />
       </div>
     </div>

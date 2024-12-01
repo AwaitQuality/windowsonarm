@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
@@ -9,70 +10,73 @@ export async function GET() {
     const { env } = getRequestContext();
     const prisma = getPrisma(env.DB);
 
-    // Get total apps count
-    const totalApps = await prisma.post.count();
-    const lastWeekNewApps = await prisma.post.count({
+    // Get total apps count and last week's new apps
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const [totalApps, lastWeekNewApps] = await Promise.all([
+      prisma.post.count(),
+      prisma.post.count({
+        where: {
+          created_at: {
+            gte: oneWeekAgo,
+          },
+        },
+      }),
+    ]);
+
+    // Get daily activity for last 30 days
+    const dailyPosts = await prisma.post.groupBy({
+      by: ['created_at'],
+      _count: {
+        id: true,
+      },
       where: {
         created_at: {
-          gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          gte: thirtyDaysAgo,
         },
       },
     });
 
-    // Get apps per status with percentages
-    const statusCounts = await prisma.$queryRaw<
-      Array<{
-        status: string;
-        count: number;
-        percentage: number;
-        color: string;
-      }>
-    >`
-      SELECT 
-        s.name as status,
-        s.color as color,
-        COUNT(*) as count,
-        ROUND(CAST(COUNT(*) AS FLOAT) * 100.0 / ${totalApps}, 1) as percentage
-      FROM Post p
-      JOIN Status s ON p.status = s.id
-      GROUP BY s.name, s.color
-      ORDER BY s.idx ASC
-    `;
+    // Create array of all dates in last 30 days
+    const dailyActivityData = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000);
+      const dateStr = date.toISOString().split('T')[0];
+      const postsOnDay = dailyPosts.filter(p => 
+        p.created_at.toISOString().split('T')[0] === dateStr
+      );
+      return {
+        date: dateStr,
+        count: postsOnDay.reduce((sum, p) => sum + p._count.id, 0),
+      };
+    });
 
-    // Get apps per category with percentages
-    const categoryCounts = await prisma.$queryRaw<
-      Array<{ category: string; count: number; percentage: number }>
-    >`
-      SELECT 
-        c.name as category,
-        COUNT(*) as count,
-        ROUND(CAST(COUNT(*) AS FLOAT) * 100.0 / ${totalApps}, 1) as percentage
-      FROM Post p
-      JOIN Category c ON p.categoryId = c.id
-      GROUP BY c.name
-      ORDER BY c.idx ASC
-    `;
+    // Get most viewed apps using Prisma's aggregation
+    const mostViewedApps = await prisma.post.findMany({
+      select: {
+        title: true,
+        _count: {
+          select: {
+            views: true,
+          },
+        },
+      },
+      orderBy: {
+        views: {
+          _count: 'desc',
+        },
+      },
+      take: 5,
+    });
 
-    // Get top tags
-    const topTags = await prisma.$queryRaw<
-      Array<{ tag: string; count: number }>
-    >`
-      SELECT 
-        t.name as tag,
-        COUNT(*) as count
-      FROM Tag t
-      JOIN _PostToTag pt ON t.id = pt.B
-      GROUP BY t.name
-      ORDER BY count DESC
-      LIMIT 10
-    `;
+    // Format most viewed apps
+    const formattedMostViewedApps = mostViewedApps.map(app => ({
+      title: app.title,
+      view_count: app._count.views,
+    }));
 
-    // Get recent activity
-    const now = new Date();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-
+    // Get recent activity counts
     const [lastDay, lastWeek, lastMonth] = await Promise.all([
       prisma.post.count({
         where: {
@@ -91,145 +95,177 @@ export async function GET() {
       prisma.post.count({
         where: {
           updated_at: {
-            gte: oneMonthAgo,
+            gte: thirtyDaysAgo,
           },
         },
       }),
     ]);
 
-    // Get status changes in last 7 days
-    const recentStatusChanges = await prisma.$queryRaw<
-      Array<{ status: string; count: number; color: string }>
-    >`
-      SELECT 
-        s.name as status,
-        s.color as color,
-        COUNT(*) as count
-      FROM Post p
-      JOIN Status s ON p.status = s.id
-      WHERE p.updated_at >= ${oneWeekAgo}
-      GROUP BY s.name, s.color
-      ORDER BY count DESC
-    `;
-
-    // Get most active categories (categories with most updates in last 30 days)
-    const activeCategories = await prisma.$queryRaw<
-      Array<{ category: string; count: number }>
-    >`
-      SELECT 
-        c.name as category,
-        COUNT(*) as count
-      FROM Post p
-      JOIN Category c ON p.categoryId = c.id
-      WHERE p.updated_at >= ${oneMonthAgo}
-      GROUP BY c.name
-      ORDER BY count DESC
-      LIMIT 5
-    `;
-
-    // Get average rating and total reviews
-    const reviewStats = await prisma.$queryRaw<
-      Array<{ avg_rating: number; total_reviews: number }>
-    >`
-      SELECT 
-        ROUND(AVG(CAST(rating AS FLOAT)), 1) as avg_rating,
-        COUNT(*) as total_reviews
-      FROM Review
-    `;
-
-    // Get recent review statistics
-    const recentReviews = await prisma.$queryRaw<
-      Array<{ avg_rating: number; total_reviews: number }>
-    >`
-      SELECT 
-        ROUND(AVG(CAST(rating AS FLOAT)), 1) as avg_rating,
-        COUNT(*) as total_reviews
-      FROM Review
-      WHERE created_at >= ${oneWeekAgo}
-    `;
-
-    // Get most reviewed apps
-    const mostReviewedApps = await prisma.$queryRaw<
-      Array<{ title: string; review_count: number; avg_rating: number }>
-    >`
-      SELECT 
-        p.title,
-        COUNT(*) as review_count,
-        ROUND(AVG(CAST(r.rating AS FLOAT)), 1) as avg_rating
-      FROM Post p
-      JOIN Review r ON p.id = r.post_id
-      GROUP BY p.title
-      ORDER BY review_count DESC
-      LIMIT 5
-    `;
-
-    // Get upvote statistics
-    const upvoteStats = await prisma.$queryRaw<
-      Array<{ title: string; upvotes: number }>
-    >`
-      SELECT 
-        p.title,
-        COUNT(*) as upvotes
-      FROM Post p
-      JOIN Upvote u ON p.id = u.post_id
-      GROUP BY p.title
-      ORDER BY upvotes DESC
-      LIMIT 5
-    `;
-
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    
-    // Get daily activity for last 30 days
-    const dailyActivity = await prisma.post.groupBy({
-      by: ['created_at'],
-      _count: {
-        id: true
-      },
-      where: {
-        created_at: {
-          gte: thirtyDaysAgo
-        }
+    // Get apps per status with percentages
+    const statusCounts = await prisma.status.findMany({
+      select: {
+        name: true,
+        color: true,
+        _count: {
+          select: {
+            posts: true,
+          },
+        },
       },
       orderBy: {
-        created_at: 'asc'
-      }
+        index: 'asc',
+      },
     });
 
-    // Format daily activity into array of {date, count} objects
-    const dailyActivityData = Array.from({ length: 30 }, (_, i) => {
-      const date = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000);
-      const dateStr = date.toISOString().split('T')[0];
-      const activity = dailyActivity.find(d => d.created_at.toISOString().startsWith(dateStr));
-      return {
-        date: dateStr,
-        count: activity ? activity._count.id : 0
-      };
+    const appsPerStatus = statusCounts.map(status => ({
+      status: status.name,
+      color: status.color,
+      count: status._count.posts,
+      percentage: totalApps ? Math.round((status._count.posts * 100) / totalApps * 10) / 10 : 0,
+    }));
+
+    // Get apps per category with percentages
+    const categoryCounts = await prisma.category.findMany({
+      select: {
+        name: true,
+        _count: {
+          select: {
+            posts: true,
+          },
+        },
+      },
+      orderBy: {
+        index: 'asc',
+      },
     });
+
+    const appsPerCategory = categoryCounts.map(category => ({
+      category: category.name,
+      count: category._count.posts,
+      percentage: totalApps ? Math.round((category._count.posts * 100) / totalApps * 10) / 10 : 0,
+    }));
+
+    // Get top tags
+    const topTags = await prisma.tag.findMany({
+      select: {
+        name: true,
+        _count: {
+          select: {
+            posts: true,
+          },
+        },
+      },
+      orderBy: {
+        posts: {
+          _count: 'desc',
+        },
+      },
+      take: 10,
+    });
+
+    const formattedTopTags = topTags.map(tag => ({
+      tag: tag.name,
+      count: tag._count.posts,
+    }));
+
+    // Get review statistics
+    const reviewStats = await prisma.review.aggregate({
+      _avg: {
+        rating: true,
+      },
+      _count: true,
+    });
+
+    // Get recent review statistics
+    const recentReviewStats = await prisma.review.aggregate({
+      where: {
+        created_at: {
+          gte: oneWeekAgo,
+        },
+      },
+      _avg: {
+        rating: true,
+      },
+      _count: true,
+    });
+
+    // Get most reviewed apps
+    const mostReviewedApps = await prisma.post.findMany({
+      select: {
+        title: true,
+        reviews: {
+          select: {
+            rating: true,
+          },
+        },
+        _count: {
+          select: {
+            reviews: true,
+          },
+        },
+      },
+      orderBy: {
+        reviews: {
+          _count: 'desc',
+        },
+      },
+      take: 5,
+    });
+
+    const formattedMostReviewedApps = mostReviewedApps.map(app => ({
+      title: app.title,
+      review_count: app._count.reviews,
+      avg_rating: app.reviews.length > 0
+        ? Math.round(app.reviews.reduce((sum, r) => sum + r.rating, 0) / app.reviews.length * 10) / 10
+        : 0,
+    }));
+
+    // Get upvote statistics
+    const upvoteStats = await prisma.post.findMany({
+      select: {
+        title: true,
+        _count: {
+          select: {
+            upvotes: true,
+          },
+        },
+      },
+      orderBy: {
+        upvotes: {
+          _count: 'desc',
+        },
+      },
+      take: 5,
+    });
+
+    const formattedUpvoteStats = upvoteStats.map(app => ({
+      title: app.title,
+      upvotes: app._count.upvotes,
+    }));
 
     return NextResponse.json({
       success: true,
       data: {
         totalApps,
         lastWeekNewApps,
-        appsPerStatus: statusCounts,
-        appsPerCategory: categoryCounts,
-        topTags,
+        dailyActivity: dailyActivityData,
+        mostViewedApps: formattedMostViewedApps,
         recentActivity: {
           lastDay,
           lastWeek,
           lastMonth,
         },
-        recentStatusChanges,
-        activeCategories,
-        averageRating: reviewStats[0]?.avg_rating || 0,
-        totalReviews: reviewStats[0]?.total_reviews || 0,
+        appsPerStatus,
+        appsPerCategory,
+        topTags: formattedTopTags,
+        averageRating: Math.round((reviewStats._avg.rating || 0) * 10) / 10,
+        totalReviews: reviewStats._count,
         recentReviews: {
-          averageRating: recentReviews[0]?.avg_rating || 0,
-          totalReviews: recentReviews[0]?.total_reviews || 0,
+          averageRating: Math.round((recentReviewStats._avg.rating || 0) * 10) / 10,
+          totalReviews: recentReviewStats._count,
         },
-        mostReviewedApps,
-        upvoteStats,
-        dailyActivity: dailyActivityData,
+        mostReviewedApps: formattedMostReviewedApps,
+        upvoteStats: formattedUpvoteStats,
       },
     });
   } catch (error) {
