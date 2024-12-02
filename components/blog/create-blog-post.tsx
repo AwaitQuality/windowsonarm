@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Button,
   Dialog,
@@ -8,16 +8,16 @@ import {
   DialogSurface,
   DialogTitle,
   DialogTrigger,
+  SelectTabData,
+  SelectTabEvent,
+  Tab,
+  TabList,
+  Text,
   Toast,
   ToastBody,
   ToastIntent,
   ToastTitle,
   useToastController,
-  Tab,
-  TabList,
-  SelectTabData,
-  SelectTabEvent,
-  Text,
 } from "@fluentui/react-components";
 import { AddRegular, EditRegular, EyeRegular } from "@fluentui/react-icons";
 import { Form } from "@/components/ui/form";
@@ -77,27 +77,39 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
       description: editPost?.description || "",
       image_url: editPost?.image_url || "",
       published: editPost?.published ?? true,
-      created_at: editPost?.created_at ? dayjs(editPost.created_at).format('YYYY-MM-DDTHH:mm') : undefined,
+      created_at: editPost?.created_at
+        ? dayjs(editPost.created_at).format("YYYY-MM-DDTHH:mm")
+        : undefined,
     },
   });
 
   useEffect(() => {
     if (editPost) {
-      form.reset(editPost);
+      const formData = {
+        title: editPost.title,
+        content: editPost.content,
+        description: editPost.description || "",
+        image_url: editPost.image_url || "",
+        published: editPost.published,
+        created_at: editPost.created_at 
+          ? dayjs(editPost.created_at).format("YYYY-MM-DDTHH:mm")
+          : undefined,
+      };
+      form.reset(formData);
     }
   }, [editPost, form]);
 
   const notify = (
     title: string,
     subtitle?: string,
-    intent: ToastIntent = "success"
+    intent: ToastIntent = "success",
   ) =>
     dispatchToast(
       <Toast>
         <ToastTitle>{title}</ToastTitle>
         {subtitle && <ToastBody>{subtitle}</ToastBody>}
       </Toast>,
-      { intent }
+      { intent },
     );
 
   const uploadFile = async (file: File): Promise<string> => {
@@ -106,7 +118,7 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
       {
         filename: file.name,
         contentType: file.type,
-      }
+      },
     );
 
     if (!response.success) {
@@ -150,39 +162,41 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
         values.created_at = new Date(values.created_at).toISOString();
       }
 
-      const endpoint = editPost ? `/api/v1/blog/${editPost.id}` : "/api/v1/blog";
+      const endpoint = editPost
+        ? `/api/v1/blog/${editPost.id}`
+        : "/api/v1/blog";
       const method = editPost ? "put" : "post";
-      
+
       const response = await aqApi[method](endpoint, {
         ...values,
         ...(editPost && { id: editPost.id }),
       });
-      
+
       if (response.success) {
         notify(
           `Blog post ${editPost ? "updated" : "created"} successfully`,
           "Your changes have been saved.",
-          "success"
+          "success",
         );
-        
+
         handleClose();
-        
+
         queryClient.invalidateQueries("blog-posts");
         if (editPost) {
           queryClient.invalidateQueries(["blog-post", editPost.id]);
         }
       } else {
         notify(
-          `Failed to ${editPost ? "update" : "create"} blog post`, 
-          response.error, 
-          "error"
+          `Failed to ${editPost ? "update" : "create"} blog post`,
+          response.error,
+          "error",
         );
       }
     } catch (error) {
       notify(
         `Error ${editPost ? "updating" : "creating"} blog post`,
         (error as Error).message,
-        "error"
+        "error",
       );
     }
   };
@@ -198,8 +212,8 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
   if (!isAdmin) return null;
 
   return (
-    <Dialog 
-      open={dialogOpen} 
+    <Dialog
+      open={dialogOpen}
       onOpenChange={(_, data) => {
         setDialogOpen(data.open);
         if (!data.open) {
@@ -217,7 +231,7 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <DialogBody>
               <DialogTitle>
-                {editPost ? 'Edit' : 'Create New'} Blog Post
+                {editPost ? "Edit" : "Create New"} Blog Post
               </DialogTitle>
               <DialogContent className="space-y-4">
                 <div className="flex gap-4 items-center">
@@ -242,11 +256,13 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
                   placeholder="Enter a brief description (max 200 characters). If not provided, it will be generated from content."
                   formControl={form.control}
                   rows={3}
-                  maxLength={200}
                 />
 
                 <div className="border rounded-lg">
-                  <TabList selectedValue={selectedTab} onTabSelect={onTabSelect}>
+                  <TabList
+                    selectedValue={selectedTab}
+                    onTabSelect={onTabSelect}
+                  >
                     <Tab icon={<EditRegular />} value="edit">
                       Edit
                     </Tab>
@@ -254,7 +270,7 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
                       Preview
                     </Tab>
                   </TabList>
-                  
+
                   <div className="p-4">
                     {selectedTab === "edit" ? (
                       <InputTextArea
@@ -316,8 +332,8 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
                 </div>
               </DialogContent>
               <DialogActions>
-                <Button 
-                  appearance="secondary" 
+                <Button
+                  appearance="secondary"
                   onClick={handleClose}
                   disabled={form.formState.isSubmitting}
                 >
@@ -328,11 +344,11 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
                   type="submit"
                   disabled={form.formState.isSubmitting}
                 >
-                  {form.formState.isSubmitting ? (
-                    'Saving...'
-                  ) : (
-                    editPost ? 'Update' : 'Publish'
-                  )}
+                  {form.formState.isSubmitting
+                    ? "Saving..."
+                    : editPost
+                      ? "Update"
+                      : "Publish"}
                 </Button>
               </DialogActions>
             </DialogBody>

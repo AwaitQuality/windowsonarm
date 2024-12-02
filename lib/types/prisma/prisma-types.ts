@@ -27,6 +27,7 @@ export interface BlogPost {
   author_id: string;
   created_at: Date;
   updated_at: Date;
+  description?: string;
   author?: {
     username?: string;
     imageUrl?: string;

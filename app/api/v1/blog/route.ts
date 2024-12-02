@@ -4,20 +4,9 @@ import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
-import { z } from "zod";
+import { blogPostSchema, UpdateBlogPostRequest } from "@/lib/backend/schemas/blog-post";
 
 export const runtime = "edge";
-
-const blogPostSchema = z.object({
-  title: z.string().min(1).max(255),
-  content: z.string().min(50),
-  description: z.string().min(10).max(200),
-  image_url: z.string().url().optional().or(z.literal("")),
-  published: z.boolean().default(true),
-  created_at: z.string().optional(),
-});
-
-export type BlogPost = z.infer<typeof blogPostSchema>;
 
 export async function GET(request: NextRequest) {
   try {
@@ -62,6 +51,43 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  try {
+    const { userId } = auth();
+    if (!userId) {
+      return ErrorResponse.json("Unauthorized", { status: 401 });
+    }
+
+    const user = await clerkClient().users.getUser(userId);
+    if (user.publicMetadata.role !== "admin") {
+      return ErrorResponse.json("Unauthorized", { status: 401 });
+    }
+
+    const body = (await request.json()) as UpdateBlogPostRequest;
+    const { id, ...updateData } = body;
+    const validatedData = blogPostSchema.parse(updateData);
+
+    if (validatedData.image_url === "") {
+      validatedData.image_url = undefined;
+    }
+
+    const { env } = getRequestContext();
+    const prisma = getPrisma(env.DB);
+
+    const post = await prisma.blogPost.update({
+      where: { id },
+      data: {
+        ...validatedData,
+        created_at: validatedData.created_at ? new Date(validatedData.created_at) : undefined,
+      },
+    });
+
+    return DataResponse.json(post);
+  } catch (error: any) {
+    return ErrorResponse.json(error.message);
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { userId } = auth();
@@ -78,7 +104,7 @@ export async function POST(request: NextRequest) {
     const validatedData = blogPostSchema.parse(body);
 
     if (validatedData.image_url === "") {
-      validatedData.image_url = null;
+      validatedData.image_url = undefined;
     }
 
     if (!validatedData.description) {
@@ -94,44 +120,9 @@ export async function POST(request: NextRequest) {
       data: {
         ...validatedData,
         author_id: userId,
-        created_at: validatedData.created_at ? new Date(validatedData.created_at) : undefined,
-      },
-    });
-
-    return DataResponse.json(post);
-  } catch (error: any) {
-    return ErrorResponse.json(error.message);
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    const { userId } = auth();
-    if (!userId) {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
-    }
-
-    const user = await clerkClient().users.getUser(userId);
-    if (user.publicMetadata.role !== "admin") {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
-    }
-
-    const body = await request.json();
-    const { id, ...updateData } = body;
-    const validatedData = blogPostSchema.parse(updateData);
-
-    if (validatedData.image_url === "") {
-      validatedData.image_url = null;
-    }
-
-    const { env } = getRequestContext();
-    const prisma = getPrisma(env.DB);
-
-    const post = await prisma.blogPost.update({
-      where: { id },
-      data: {
-        ...validatedData,
-        created_at: validatedData.created_at ? new Date(validatedData.created_at) : undefined,
+        created_at: validatedData.created_at
+          ? new Date(validatedData.created_at)
+          : undefined,
       },
     });
 

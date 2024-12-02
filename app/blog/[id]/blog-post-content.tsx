@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Container } from "@/components/ui/container";
-import { Card, Text, Caption1, Display, makeStyles, tokens, Button, Dialog, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions, useToastController, Toast, ToastTitle, ToastBody } from "@fluentui/react-components";
+import { Card, Text, Caption1, Display, makeStyles, tokens, Button, Dialog, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions, useToastController, Toast, ToastTitle, ToastBody, ToastIntent } from "@fluentui/react-components";
 import { CalendarRegular, PersonRegular, ArrowLeftRegular, EditRegular, DeleteRegular } from "@fluentui/react-icons";
 import dayjs from "dayjs";
 import GlobalMarkdown from "@/components/markdown";
