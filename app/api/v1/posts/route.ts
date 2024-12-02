@@ -25,15 +25,18 @@ const createPostSchema = z.object({
   company: z.string().max(255),
   description: z.string().min(50),
   tags: z.array(z.string()).max(10).optional(),
-  app_url: z.string()
+  app_url: z
+    .string()
     .url({ message: "Please enter a valid URL" })
     .optional()
     .or(z.literal("")),
-  community_url: z.string()
+  community_url: z
+    .string()
     .url({ message: "Please enter a valid URL" })
     .optional()
     .or(z.literal("")),
-  banner_url: z.string()
+  banner_url: z
+    .string()
     .url({ message: "Please enter a valid URL" })
     .optional()
     .or(z.literal("")),
@@ -89,7 +92,7 @@ export async function GET(request: NextRequest) {
           : false,
         category: true,
         _count: {
-          select: { 
+          select: {
             upvotes: true,
             views: true,
           },
@@ -173,7 +176,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const postRequest = await request.json();
-    
+
     // Validate request data
     const validatedData = createPostSchema.parse(postRequest);
 
@@ -212,7 +215,7 @@ export async function POST(request: NextRequest) {
                 data: { name: tagName },
               });
             }
-          }),
+          })
         )
       : [];
 
@@ -255,7 +258,7 @@ export async function POST(request: NextRequest) {
       {
         headers: {
           Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       }
     );

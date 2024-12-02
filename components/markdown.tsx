@@ -10,6 +10,8 @@ import {
   Link as FluentLink,
   LargeTitle,
   Subtitle1,
+  Subtitle2,
+  Title3,
   Divider,
 } from "@fluentui/react-components";
 
@@ -25,8 +27,13 @@ export default function GlobalMarkdown({ children }: GlobalMarkdownProps) {
       components={{
         h1: ({ children }) => <LargeTitle className="!block mb-4">{children}</LargeTitle>,
         h2: ({ children }) => <Subtitle1 className="!block mb-3 mt-6">{children}</Subtitle1>,
-        h3: ({ children }) => (
-          <Caption1 className="!block mb-2 mt-4 font-semibold">{children}</Caption1>
+        h3: ({ children }) => <Subtitle2 className="!block mb-3 mt-5">{children}</Subtitle2>,
+        h4: ({ children }) => <Title3 className="!block mb-2 mt-4">{children}</Title3>,
+        h5: ({ children }) => (
+          <Caption1 className="!block mb-2 mt-4 font-semibold text-base">{children}</Caption1>
+        ),
+        h6: ({ children }) => (
+          <Caption1 className="!block mb-2 mt-3 text-sm">{children}</Caption1>
         ),
         p: ({ children }) => (
           <div className="whitespace-pre-wrap mb-4">
