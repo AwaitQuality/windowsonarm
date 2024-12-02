@@ -15,7 +15,7 @@ const updatePostSchema = z.object({
   description: z.string(),
   tags: z.array(z.string()).max(15).optional(),
   app_url: z.string().url().optional().nullable(),
-  community_url: z.string().url().optional().nullable(),
+  community_url: z.string().optional().nullable(),
   banner_url: z.string().optional().nullable(),
   status_id: z.number(),
   icon_url: z.string().optional().nullable(),
