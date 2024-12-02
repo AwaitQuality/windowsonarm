@@ -144,11 +144,11 @@ export default function Home() {
 
       <div className="flex flex-col items-center pt-5" id={"#app"}>
         <Display as={"h1"}>
-          <span className={"text-blue-400"}>Windows 11</span> on ARM
+          <span className={"text-blue-400"}>Windows ARM</span> Software & News
         </Display>
         <Subtitle1 className={"mb-4"}>
-          Software and games that are reported to work on Snapdragon and other
-          ARM devices.
+          News and software & games compatibility for Windows ARM (Snapdragon)
+          devices.
         </Subtitle1>
 
         <div className={"mb-8 flex gap-2"}>

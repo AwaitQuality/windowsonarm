@@ -6,7 +6,10 @@ const BASE_URL = "https://windowsonarm.org";
 
 export const runtime = "edge";
 
-function generateSiteMap(apps: { id: string; updated_at: Date }[]) {
+function generateSiteMap(
+  apps: { id: string; updated_at: Date }[],
+  blogPosts: { id: string; updated_at: Date }[]
+) {
   return `<?xml version="1.0" encoding="UTF-8"?>
    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
      <url>
@@ -19,13 +22,13 @@ function generateSiteMap(apps: { id: string; updated_at: Date }[]) {
       <loc>https://windowsonarm.org/auth/signin</loc>
       <lastmod>2024-07-18</lastmod>
       <changefreq>monthly</changefreq>
-      <priority>0.8</priority>
+      <priority>0.3</priority>
     </url>
     <url>
       <loc>https://windowsonarm.org/auth/signup</loc>
       <lastmod>2024-07-18</lastmod>
       <changefreq>monthly</changefreq>
-      <priority>0.8</priority>
+      <priority>0.3</priority>
     </url>
      ${apps
        .map(({ id, updated_at }) => {
@@ -39,6 +42,18 @@ function generateSiteMap(apps: { id: string; updated_at: Date }[]) {
      `;
        })
        .join("")}
+     ${blogPosts
+       .map(({ id, updated_at }) => {
+         return `
+       <url>
+           <loc>${BASE_URL}/blog/${id}</loc>
+           <priority>0.9</priority>
+            <changefreq>weekly</changefreq>
+            <lastmod>${updated_at.toISOString()}</lastmod>
+       </url>
+     `;
+       })
+       .join("")}
    </urlset>
  `;
 }
@@ -46,14 +61,20 @@ function generateSiteMap(apps: { id: string; updated_at: Date }[]) {
 export async function GET() {
   try {
     const { env } = getRequestContext();
-
     const prisma = getPrisma(env.DB);
 
-    const apps = await prisma.post.findMany({
-      select: { id: true, updated_at: true },
-    });
+    // Get both apps and blog posts
+    const [apps, blogPosts] = await Promise.all([
+      prisma.post.findMany({
+        select: { id: true, updated_at: true },
+      }),
+      prisma.blogPost.findMany({
+        where: { published: true },
+        select: { id: true, updated_at: true },
+      }),
+    ]);
 
-    const sitemap = generateSiteMap(apps);
+    const sitemap = generateSiteMap(apps, blogPosts);
 
     return new NextResponse(sitemap, {
       status: 200,

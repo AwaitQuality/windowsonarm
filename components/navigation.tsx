@@ -38,7 +38,81 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
         )}
         {...props}
       >
-        <div className={"flex gap-2 flex-wrap"}>
+        <div className="sm:hidden">
+          <Menu positioning="below-start">
+            <MenuTrigger disableButtonEnhancement>
+              <Button icon={<MenuIcon />} />
+            </MenuTrigger>
+            <MenuPopover>
+              <MenuList className="w-64">
+                <MenuItem>
+                  <Link href="/" className="w-full">
+                    <div className="flex items-center gap-2 w-full">
+                      <Home size={16} />
+                      <span>Home</span>
+                    </div>
+                  </Link>
+                </MenuItem>
+                <MenuItem>
+                  <Link href="/statistics" className="w-full">
+                    <div className="flex items-center gap-2 w-full">
+                      <ChartMultipleRegular />
+                      <span>Statistics</span>
+                    </div>
+                  </Link>
+                </MenuItem>
+                <MenuItem>
+                  <Link href="https://github.com/AwaitQuality/windowsonarm" className="w-full">
+                    <div className="flex items-center gap-2 w-full">
+                      <Github size={16} />
+                      <span>Contribute on Github</span>
+                    </div>
+                  </Link>
+                </MenuItem>
+                <MenuItem>
+                  <Link href="https://github.com/sponsors/OpenSource03" className="w-full">
+                    <div className="flex items-center gap-2 w-full">
+                      <Coffee size={16} />
+                      <span>Buy us a coffee</span>
+                    </div>
+                  </Link>
+                </MenuItem>
+                <MenuItem>
+                  <Link href="/privacy-policy" className="w-full">
+                    <div className="flex items-center gap-2 w-full">
+                      <span>Privacy Policy</span>
+                    </div>
+                  </Link>
+                </MenuItem>
+                <MenuItem>
+                  <Link href="/terms-of-service" className="w-full">
+                    <div className="flex items-center gap-2 w-full">
+                      <span>Terms of Service</span>
+                    </div>
+                  </Link>
+                </MenuItem>
+                <MenuItem>
+                  <Link href="https://discord.gg/8EVWtctVEk" className="w-full">
+                    <div className="flex items-center gap-2 w-full">
+                      <SiDiscord className="w-4 h-4" />
+                      <span>Discord</span>
+                    </div>
+                  </Link>
+                </MenuItem>
+                <SignedOut>
+                  <MenuItem>
+                    <Link href="/auth/signin" className="w-full">
+                      <div className="flex items-center gap-2 w-full">
+                        <span>Sign in</span>
+                      </div>
+                    </Link>
+                  </MenuItem>
+                </SignedOut>
+              </MenuList>
+            </MenuPopover>
+          </Menu>
+        </div>
+        <div className={"hidden sm:flex gap-2 flex-wrap"}>
           <Link href="/" passHref>
             <Button
               icon={<Home size={20} />}
@@ -60,16 +134,13 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
               Contribute on Github
             </Button>
           </Link>
-          <Link
-            href="https://github.com/sponsors/OpenSource03"
-            className="hidden sm:inline-block"
-          >
+          <Link href="https://github.com/sponsors/OpenSource03">
             <Button icon={<Coffee size={20} color={"#ADADAD"} />}>
               Buy us a coffee
             </Button>
           </Link>
         </div>
-        <div className={"flex gap-4 items-center"}>
+        <div className={"flex gap-4 items-center ml-auto"}>
           <div className="hidden sm:flex text-xs space-x-2 mr-4">
             <Link href="/privacy-policy" passHref>
               <FluentLink>Privacy Policy</FluentLink>
@@ -95,60 +166,6 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
               <Button>Sign in</Button>
             </Link>
           </SignedOut>
-          <div className="sm:hidden">
-            <Menu positioning="below-end">
-              <MenuTrigger disableButtonEnhancement>
-                <Button icon={<MenuIcon />} />
-              </MenuTrigger>
-              <MenuPopover>
-                <MenuList>
-                  <MenuItem>
-                    <Link href="/" className="w-full">
-                      <Button
-                        icon={<Home size={20} />}
-                        appearance={pathname === "/" ? "primary" : "secondary"}
-                        className="w-full"
-                      >
-                        Home
-                      </Button>
-                    </Link>
-                  </MenuItem>
-                  <MenuItem>
-                    <Link href="/statistics" className="w-full">
-                      <Button
-                        icon={<ChartMultipleRegular />}
-                        appearance={
-                          pathname === "/statistics" ? "primary" : "secondary"
-                        }
-                        className="w-full"
-                      >
-                        Statistics
-                      </Button>
-                    </Link>
-                  </MenuItem>
-                  <MenuItem>
-                    <Link href="https://github.com/sponsors/OpenSource03">
-                      Buy us a coffee
-                    </Link>
-                  </MenuItem>
-                  <MenuItem>
-                    <Link href="/privacy-policy">Privacy Policy</Link>
-                  </MenuItem>
-                  <MenuItem>
-                    <Link href="/terms-of-service">Terms of Service</Link>
-                  </MenuItem>
-                  <MenuItem>
-                    <Link href={"https://discord.gg/8EVWtctVEk"}>Discord</Link>
-                  </MenuItem>
-                  <SignedOut>
-                    <MenuItem>
-                      <Link href="/auth/signin">Sign in</Link>
-                    </MenuItem>
-                  </SignedOut>
-                </MenuList>
-              </MenuPopover>
-            </Menu>
-          </div>
         </div>
       </div>
       <GoogleOneTap />
