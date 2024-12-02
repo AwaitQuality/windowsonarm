@@ -12,6 +12,8 @@ import {
   MessageBarBody,
   MessageBarTitle,
   Subtitle1,
+  Card,
+  Text,
 } from "@fluentui/react-components";
 import { Container } from "@/components/ui/container";
 import ShareButton from "@/components/share-button";
@@ -26,6 +28,26 @@ import { usePersistedState } from "@/lib/persisted-state";
 import { useRouter } from "next/navigation";
 import { SiDiscord } from "@icons-pack/react-simple-icons";
 import { useQueryStates, parseAsString } from "nuqs";
+import { BlogCard } from "@/components/blog/blog-card";
+import { CreateBlogPost } from "@/components/blog/create-blog-post";
+import { useUser } from "@clerk/nextjs";
+import { BlogSection } from "@/components/blog/blog-section";
+
+// Add interface for BlogPost
+interface BlogPost {
+  id: string;
+  title: string;
+  content: string;
+  image_url?: string | null;
+  published: boolean;
+  author_id: string;
+  created_at: Date;
+  updated_at: Date;
+  author: {
+    username?: string;
+    imageUrl?: string;
+  };
+}
 
 export default function Home() {
   const [{ category, status, search }, setQueryStates] = useQueryStates({
@@ -41,9 +63,12 @@ export default function Home() {
   const [messageBox, setMessageBox] = usePersistedState("messageBox", "true");
   const router = useRouter();
 
+  const { user } = useUser();
+  const isAdmin = user?.publicMetadata?.role === "admin";
+
   const fetchPosts = async ({ pageParam = null }) => {
     const response = await aqApi.get<PostsResponse>(
-      `/api/v1/posts?cursor=${pageParam || ""}&category=${selectedCategory || ""}&status=${selectedStatus === null ? "" : selectedStatus}&search=${searchBox}&verified=true`,
+      `/api/v1/posts?cursor=${pageParam || ""}&category=${selectedCategory || ""}&status=${selectedStatus === null ? "" : selectedStatus}&search=${searchBox}&verified=true`
     );
 
     if (!response.success) {
@@ -71,7 +96,7 @@ export default function Home() {
       cacheTime: 1000 * 60 * 5,
       staleTime: 1000 * 60 * 5,
       keepPreviousData: true,
-    },
+    }
   );
 
   const query = useInfiniteQuery(
@@ -81,7 +106,23 @@ export default function Home() {
       getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
       cacheTime: 1000 * 60 * 5,
       staleTime: 1000 * 60 * 5,
+    }
+  );
+
+  const { data: blogPosts = [], isLoading: blogLoading } = useQuery<BlogPost[]>(
+    "blog-posts",
+    async () => {
+      const response = await aqApi.get<BlogPost[]>("/api/v1/blog");
+      console.log('API Response:', response);
+      if (!response.success) {
+        throw new Error(response.error);
+      }
+      return response.data;
     },
+    {
+      refetchOnWindowFocus: false,
+      staleTime: 1000 * 60 * 5,
+    }
   );
 
   // Helper functions to update URL state
@@ -114,6 +155,8 @@ export default function Home() {
           <ContributeButton query={infoQuery} />
           <ShareButton />
         </div>
+
+        <BlogSection posts={blogPosts} isAdmin={isAdmin} isLoading={blogLoading} />
 
         <InfoSection
           query={infoQuery}

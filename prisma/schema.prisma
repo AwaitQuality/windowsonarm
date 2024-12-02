@@ -121,3 +121,18 @@ model View {
   @@index([post_id])
   @@index([ip_address])
 }
+
+model BlogPost {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  description String? // Add this field for short preview
+  image_url   String?
+  published   Boolean  @default(true)
+  author_id   String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  @@index([author_id])
+  @@index([created_at])
+}

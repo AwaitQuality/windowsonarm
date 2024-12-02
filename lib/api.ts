@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 
 export const getAppById = async (
   id: string,
-  logView: boolean = true,
+  logView: boolean = true
 ): Promise<FullPost | null> => {
   const userId = auth().userId;
   const { env } = getRequestContext();
@@ -107,3 +107,37 @@ export const getAppById = async (
     return null;
   }
 };
+
+export async function getBlogPostById(id: string) {
+  const { env } = getRequestContext();
+  const prisma = getPrisma(env.DB);
+
+  const post = await prisma.blogPost.findUnique({
+    where: {
+      id: id,
+    },
+  });
+
+  if (!post) return null;
+
+  // Fetch author information from Clerk
+  try {
+    const user = await clerkClient().users.getUser(post.author_id);
+    return {
+      ...post,
+      author: {
+        username: user.username || `${user.firstName} ${user.lastName}`.trim(),
+        imageUrl: user.imageUrl,
+      },
+    };
+  } catch (error) {
+    // Return post with anonymous author if user fetch fails
+    return {
+      ...post,
+      author: {
+        username: "Anonymous",
+        imageUrl: undefined,
+      },
+    };
+  }
+}

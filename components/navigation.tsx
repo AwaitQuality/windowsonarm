@@ -1,6 +1,16 @@
+"use client";
+
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Button, Link as FluentLink, Menu, MenuTrigger, MenuList, MenuItem, MenuPopover } from "@fluentui/react-components";
+import {
+  Button,
+  Link as FluentLink,
+  Menu,
+  MenuTrigger,
+  MenuList,
+  MenuItem,
+  MenuPopover,
+} from "@fluentui/react-components";
 import { Coffee, Github, Menu as MenuIcon, Home } from "lucide-react";
 import {
   ClerkLoading,
@@ -24,13 +34,13 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
       <div
         className={cn(
           "w-full flex justify-between items-center gap-2",
-          className,
+          className
         )}
         {...props}
       >
         <div className={"flex gap-2 flex-wrap"}>
           <Link href="/" passHref>
-            <Button 
+            <Button
               icon={<Home size={20} />}
               appearance={pathname === "/" ? "primary" : "secondary"}
             >
@@ -38,7 +48,7 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
             </Button>
           </Link>
           <Link href="/statistics" passHref>
-            <Button 
+            <Button
               icon={<ChartMultipleRegular />}
               appearance={pathname === "/statistics" ? "primary" : "secondary"}
             >
@@ -50,7 +60,10 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
               Contribute on Github
             </Button>
           </Link>
-          <Link href="https://github.com/sponsors/OpenSource03" className="hidden sm:inline-block">
+          <Link
+            href="https://github.com/sponsors/OpenSource03"
+            className="hidden sm:inline-block"
+          >
             <Button icon={<Coffee size={20} color={"#ADADAD"} />}>
               Buy us a coffee
             </Button>
@@ -65,7 +78,10 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
               <FluentLink>Terms of Service</FluentLink>
             </Link>
           </div>
-          <Link href={"https://discord.gg/8EVWtctVEk"} className="hidden sm:inline-block">
+          <Link
+            href={"https://discord.gg/8EVWtctVEk"}
+            className="hidden sm:inline-block"
+          >
             <SiDiscord />
           </Link>
           <ClerkLoading>
@@ -88,7 +104,7 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
                 <MenuList>
                   <MenuItem>
                     <Link href="/" className="w-full">
-                      <Button 
+                      <Button
                         icon={<Home size={20} />}
                         appearance={pathname === "/" ? "primary" : "secondary"}
                         className="w-full"
@@ -99,9 +115,11 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
                   </MenuItem>
                   <MenuItem>
                     <Link href="/statistics" className="w-full">
-                      <Button 
+                      <Button
                         icon={<ChartMultipleRegular />}
-                        appearance={pathname === "/statistics" ? "primary" : "secondary"}
+                        appearance={
+                          pathname === "/statistics" ? "primary" : "secondary"
+                        }
                         className="w-full"
                       >
                         Statistics
