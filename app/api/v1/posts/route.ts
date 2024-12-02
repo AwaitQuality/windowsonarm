@@ -103,6 +103,11 @@ export async function GET(request: NextRequest) {
           },
         },
         {
+          views: {
+            _count: "desc",
+          },
+        },
+        {
           title: "asc",
         },
       ],
