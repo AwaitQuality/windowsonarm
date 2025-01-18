@@ -2,7 +2,8 @@ import "./globals.css";
 import React, { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import ClientWrapper from "@/app/layoutclient";
-import { NuqsAdapter } from 'nuqs/adapters/next/app'
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "Windows on ARM | Software Compatibility List",
@@ -97,6 +98,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"
+          strategy="afterInteractive"
+          data-client="ca-pub-2914289587690478"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body>
         <Suspense>
           <NuqsAdapter>
