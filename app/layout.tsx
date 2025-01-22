@@ -4,6 +4,7 @@ import type { Metadata, Viewport } from "next";
 import ClientWrapper from "@/app/layoutclient";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import Script from "next/script";
+import AntiAdblockScript from "@/components/anti-adblock-script";
 
 export const metadata: Metadata = {
   title: "Windows on ARM | Software Compatibility List",
@@ -110,6 +111,7 @@ export default function RootLayout({
         <Suspense>
           <NuqsAdapter>
             <ClientWrapper>{children}</ClientWrapper>
+            <AntiAdblockScript />
           </NuqsAdapter>
         </Suspense>
       </body>
