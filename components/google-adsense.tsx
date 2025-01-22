@@ -10,9 +10,13 @@ declare global {
 
 interface GoogleAdsenseProps {
   className?: string;
+  type?: "default" | "in-article";
 }
 
-const GoogleAdsense: React.FC<GoogleAdsenseProps> = ({ className }) => {
+const GoogleAdsense: React.FC<GoogleAdsenseProps> = ({
+  className,
+  type = "default",
+}) => {
   useEffect(() => {
     try {
       (window.adsbygoogle = window.adsbygoogle || []).push({});
@@ -20,6 +24,21 @@ const GoogleAdsense: React.FC<GoogleAdsenseProps> = ({ className }) => {
       console.error("Error loading Google AdSense:", err);
     }
   }, []);
+
+  if (type === "in-article") {
+    return (
+      <div className={className}>
+        <ins
+          className="adsbygoogle"
+          style={{ display: "block", textAlign: "center" }}
+          data-ad-layout="in-article"
+          data-ad-format="fluid"
+          data-ad-client="ca-pub-2914289587690478"
+          data-ad-slot="3157365588"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={className}>

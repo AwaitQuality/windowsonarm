@@ -1,9 +1,34 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Container } from "@/components/ui/container";
-import { Card, Text, Caption1, Display, makeStyles, tokens, Button, Dialog, DialogSurface, DialogBody, DialogTitle, DialogContent, DialogActions, useToastController, Toast, ToastTitle, ToastBody, ToastIntent } from "@fluentui/react-components";
-import { CalendarRegular, PersonRegular, ArrowLeftRegular, EditRegular, DeleteRegular } from "@fluentui/react-icons";
+import {
+  Card,
+  Text,
+  Caption1,
+  Display,
+  makeStyles,
+  tokens,
+  Button,
+  Dialog,
+  DialogSurface,
+  DialogBody,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  useToastController,
+  Toast,
+  ToastTitle,
+  ToastBody,
+  ToastIntent,
+} from "@fluentui/react-components";
+import {
+  CalendarRegular,
+  PersonRegular,
+  ArrowLeftRegular,
+  EditRegular,
+  DeleteRegular,
+} from "@fluentui/react-icons";
 import dayjs from "dayjs";
 import GlobalMarkdown from "@/components/markdown";
 import { BlogPost } from "@/lib/types/prisma/prisma-types";
@@ -14,6 +39,11 @@ import { useUser } from "@clerk/nextjs";
 import { CreateBlogPost } from "@/components/blog/create-blog-post";
 import { useRouter } from "next/navigation";
 import { aqApi } from "@/lib/axios/api";
+import dynamic from "next/dynamic";
+
+const GoogleAdsense = dynamic(() => import("@/components/google-adsense"), {
+  ssr: false,
+});
 
 interface BlogPostContentProps {
   post: BlogPost & {
@@ -46,7 +76,11 @@ export default function BlogPostContent({ post }: BlogPostContentProps) {
   const router = useRouter();
   const { dispatchToast } = useToastController();
 
-  const notify = (title: string, subtitle?: string, intent: ToastIntent = "success") =>
+  const notify = (
+    title: string,
+    subtitle?: string,
+    intent: ToastIntent = "success"
+  ) =>
     dispatchToast(
       <Toast>
         <ToastTitle>{title}</ToastTitle>
@@ -61,39 +95,35 @@ export default function BlogPostContent({ post }: BlogPostContentProps) {
       if (response.success) {
         notify("Blog post deleted successfully");
         setIsDeleteDialogOpen(false);
-        router.push('/');
+        router.push("/");
       } else {
         notify("Failed to delete blog post", response.error, "error");
       }
     } catch (error) {
-      notify(
-        "Error deleting blog post", 
-        (error as Error).message, 
-        "error"
-      );
+      notify("Error deleting blog post", (error as Error).message, "error");
     }
   };
 
   return (
     <>
       {/* Header with image background or gradient fallback */}
-      <div 
+      <div
         className={`relative ${
-          post.image_url 
-            ? 'bg-neutral-900' 
-            : 'bg-gradient-to-r from-blue-800 to-blue-950'
+          post.image_url
+            ? "bg-neutral-900"
+            : "bg-gradient-to-r from-blue-800 to-blue-950"
         }`}
       >
         {post.image_url && (
           <>
             {/* Background image with overlay */}
-            <div 
+            <div
               className="absolute inset-0 z-0"
               style={{
                 backgroundImage: `url(${post.image_url})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
               }}
             />
             {/* Dark overlay for better text readability */}
@@ -161,6 +191,11 @@ export default function BlogPostContent({ post }: BlogPostContentProps) {
             </div>
           </Card>
 
+          {/* In-article Ad */}
+          <Card className="p-8 mb-8" appearance="filled-alternative">
+            <GoogleAdsense type="in-article" className="w-full" />
+          </Card>
+
           {/* Comments */}
           <Card className="p-8" appearance="filled-alternative">
             <Giscus
@@ -191,15 +226,16 @@ export default function BlogPostContent({ post }: BlogPostContentProps) {
           />
 
           {/* Delete Confirmation Dialog */}
-          <Dialog 
-            open={isDeleteDialogOpen} 
+          <Dialog
+            open={isDeleteDialogOpen}
             onOpenChange={(_, data) => setIsDeleteDialogOpen(data.open)}
           >
             <DialogSurface>
               <DialogBody>
                 <DialogTitle>Delete Blog Post</DialogTitle>
                 <DialogContent>
-                  Are you sure you want to delete this blog post? This action cannot be undone.
+                  Are you sure you want to delete this blog post? This action
+                  cannot be undone.
                 </DialogContent>
                 <DialogActions>
                   <Button
