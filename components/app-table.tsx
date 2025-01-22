@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   Button,
   makeStyles,
@@ -37,6 +38,8 @@ import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { PostsResponse } from "@/app/api/v1/posts/route";
 import { aqApi } from "@/lib/axios/api";
 import { UpvoteRequest } from "@/app/api/v1/posts/upvote/route";
+
+const GoogleAdsense = dynamic(() => import("./google-adsense"), { ssr: false });
 
 const useStyles = makeStyles({
   responsiveCell: {
@@ -198,6 +201,20 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
     e.stopPropagation();
   };
 
+  useEffect(() => {
+    // Load Google AdSense script
+    const script = document.createElement("script");
+    script.src =
+      "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2914289587690478";
+    script.async = true;
+    script.crossOrigin = "anonymous";
+    document.head.appendChild(script);
+
+    return () => {
+      document.head.removeChild(script);
+    };
+  }, []);
+
   if (isError) {
     return (
       <MessageBar>
@@ -295,7 +312,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {/* Featured Row - restore original content but keep mobile-friendly */}
+          {/* Featured Row */}
           <TableRow
             className="cursor-pointer group relative hover:bg-blue-50/5 mb-6"
             onClick={handleFeatureClick}
@@ -304,7 +321,10 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
               colSpan={columns.length}
               className={`!p-4 border-b-2 border-blue-500/20 ${styles.featuredCell}`}
             >
-              <a href="mailto:dejan@thearcadia.xyz?subject=Feature%20Request%20for%20Windows%20on%20ARM&body=I%20would%20like%20to%20feature%20my%20app%20on%20Windows%20on%20ARM." className="relative">
+              <a
+                href="mailto:dejan@thearcadia.xyz?subject=Feature%20Request%20for%20Windows%20on%20ARM&body=I%20would%20like%20to%20feature%20my%20app%20on%20Windows%20on%20ARM."
+                className="relative"
+              >
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-blue-500/10 blur-2xl opacity-50 group-hover:opacity-75 transition-all duration-500" />
                 <div className="relative flex items-center gap-6">
                   <div className="featured-icon flex-shrink-0 p-3 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20">
@@ -327,6 +347,15 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
                   </div>
                 </div>
               </a>
+            </TableCell>
+          </TableRow>
+
+          {/* AdSense Row */}
+          <TableRow>
+            <TableCell colSpan={columns.length} className="!p-4">
+              <div className="min-h-[100px] w-full">
+                <GoogleAdsense className="w-full h-full" />
+              </div>
             </TableCell>
           </TableRow>
 
