@@ -111,7 +111,6 @@ export default function RootLayout({
         <Suspense>
           <NuqsAdapter>
             <ClientWrapper>{children}</ClientWrapper>
-            <AntiAdblockScript />
           </NuqsAdapter>
         </Suspense>
       </body>
