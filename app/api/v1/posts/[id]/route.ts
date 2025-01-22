@@ -6,6 +6,7 @@ import DataResponse from "@/lib/backend/response/DataResponse";
 import { z } from "zod";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { getAppById } from "@/lib/api";
+import axios from "axios";
 
 export const runtime = "edge";
 
@@ -24,7 +25,7 @@ const updatePostSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: { id: string } }
 ) {
   try {
     const post = await getAppById(params.id);
@@ -38,7 +39,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: { id: string } }
 ) {
   try {
     const { userId } = auth();
@@ -69,6 +70,14 @@ export async function PUT(
     const { env } = getRequestContext();
     const prisma = getPrisma(env.DB);
 
+    // Get the current post to check if status changed
+    const currentPost = await prisma.post.findUnique({
+      where: { id: params.id },
+      include: {
+        status: true,
+      },
+    });
+
     const updatedPost = await prisma.post.update({
       where: { id: params.id },
       data: {
@@ -90,6 +99,48 @@ export async function PUT(
       },
     });
 
+    // If status has changed, send Discord webhook
+    if (currentPost && currentPost.status_id !== validatedData.status_id) {
+      const webhookUrl =
+        "https://discord.com/api/webhooks/1331742936060268614/l2aTkSiDDx2J1qagrpRb701SQAtwcZzJjrpqurrpttVXUpI2DfBokUiOo_Pqo63W26y6";
+
+      const embedColor = updatedPost.status.color.replace("#", "");
+      const message = {
+        embeds: [
+          {
+            title: "App Status Updated",
+            description: `**${updatedPost.title}** status has been updated`,
+            color: parseInt(embedColor, 16),
+            fields: [
+              {
+                name: "Previous Status",
+                value: currentPost.status.name,
+                inline: true,
+              },
+              {
+                name: "New Status",
+                value: updatedPost.status.name,
+                inline: true,
+              },
+              {
+                name: "Updated By",
+                value:
+                  user.username || `${user.firstName} ${user.lastName}`.trim(),
+                inline: true,
+              },
+            ],
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      };
+
+      try {
+        await axios.post(webhookUrl, message);
+      } catch (error) {
+        console.error("Failed to send Discord webhook:", error);
+      }
+    }
+
     return DataResponse.json(updatedPost);
   } catch (error: any) {
     console.error("Error updating post:", error);
@@ -99,7 +150,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: { id: string } }
 ) {
   try {
     const { userId } = auth();

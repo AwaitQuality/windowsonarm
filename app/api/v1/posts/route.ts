@@ -116,7 +116,16 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    const postsWithUpvoteStatus: FullPost[] = posts.map((post) => ({
+    // Calculate points for each post (10 points per upvote + 1 point per view)
+    const postsWithPoints = posts.map((post) => ({
+      ...post,
+      points: post._count.upvotes * 10 + post._count.views,
+    }));
+
+    // Sort posts by points in descending order
+    postsWithPoints.sort((a, b) => b.points - a.points);
+
+    const postsWithUpvoteStatus: FullPost[] = postsWithPoints.map((post) => ({
       ...post,
       tags: [],
       userUpvoted: post.upvotes?.length > 0,
