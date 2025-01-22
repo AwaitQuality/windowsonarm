@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import AppDescription from "./app-description";
@@ -9,6 +10,10 @@ import Reviews from "@/components/post/reviews";
 import ForumMessages from "@/components/post/forum-messages";
 import Giscus from "@giscus/react";
 import { Card } from "@fluentui/react-components";
+
+const GoogleAdsense = dynamic(() => import("@/components/google-adsense"), {
+  ssr: false,
+});
 
 interface AppContentProps {
   app: FullPost;

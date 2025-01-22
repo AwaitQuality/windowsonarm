@@ -353,7 +353,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
           {/* AdSense Row */}
           <TableRow>
             <TableCell colSpan={columns.length} className="!p-4">
-              <div className="min-h-[100px] w-full">
+              <div className="h-[120px] w-full">
                 <GoogleAdsense className="w-full h-full" />
               </div>
             </TableCell>

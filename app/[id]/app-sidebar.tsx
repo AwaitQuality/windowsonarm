@@ -37,6 +37,11 @@ import dayjs from "dayjs";
 import { aqApi } from "@/lib/axios/api";
 import StatusVote from "@/components/post/status-vote";
 import EditPost from "@/components/post/edit-post";
+import dynamic from "next/dynamic";
+
+const GoogleAdsense = dynamic(() => import("@/components/google-adsense"), {
+  ssr: false,
+});
 
 interface AppSidebarProps {
   app: FullPost;
@@ -120,6 +125,16 @@ export default function AppSidebar({ app, info }: AppSidebarProps) {
             <EyeRegular />
             <Body1>{app._count?.views || 0} views</Body1>
           </div>
+        </div>
+      </Card>
+
+      <Card
+        className="rounded-lg shadow-md p-4 mb-8"
+        appearance={"filled-alternative"}
+        size="large"
+      >
+        <div className="h-[250px] w-full">
+          <GoogleAdsense className="w-full h-full" />
         </div>
       </Card>
 
