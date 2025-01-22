@@ -58,11 +58,12 @@ function ClientWrapper({ children }: { children: React.ReactNode }) {
         <Providers>
           <QueryClientProvider client={queryClient}>
             <Toaster toasterId={toasterId} />
-            <div className={"min-h-screen h-full"}>{children}</div>
+            {children}
           </QueryClientProvider>
         </Providers>
       </ClerkProvider>
     </AppProvider>
   );
 }
+
 export default ClientWrapper;
