@@ -111,6 +111,7 @@ export default function RootLayout({
         <Suspense>
           <NuqsAdapter>
             <ClientWrapper>{children}</ClientWrapper>
+            <Script src="/blockadblock.js" strategy="afterInteractive" />
           </NuqsAdapter>
         </Suspense>
       </body>
