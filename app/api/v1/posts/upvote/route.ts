@@ -51,6 +51,11 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      await prisma.post.update({
+        where: { id: postId },
+        data: { upvotes_count: { decrement: 1 } },
+      });
+
       return DataResponse.json({
         action: "unvoted",
         post,
@@ -62,6 +67,11 @@ export async function POST(request: NextRequest) {
         post_id: postId,
         user_id: userId,
       },
+    });
+
+    await prisma.post.update({
+      where: { id: postId },
+      data: { upvotes_count: { increment: 1 } },
     });
 
     return DataResponse.json(post);

@@ -2,15 +2,17 @@ import { StatusWithPercentage } from "@/app/api/v1/info/route";
 import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
+import { unstable_cache } from "next/cache";
 
-export const getInfo = async (): Promise<InfoResponse> => {
-  const { env } = getRequestContext();
+export const getInfo = unstable_cache(
+  async (): Promise<InfoResponse> => {
+    const { env } = getRequestContext();
 
-  const prisma = getPrisma(env.DB);
+    const prisma = getPrisma(env.DB);
 
-  const categories = await prisma.category.findMany();
+    const categories = await prisma.category.findMany();
 
-  const status = await prisma.$queryRaw<StatusWithPercentage[]>`
+    const status = await prisma.$queryRaw<StatusWithPercentage[]>`
         SELECT
             Status.id as id,
             Status.name,
@@ -23,11 +25,14 @@ export const getInfo = async (): Promise<InfoResponse> => {
         ORDER BY Status."idx" ASC
     `;
 
-  const tags = await prisma.tag.findMany();
+    const tags = await prisma.tag.findMany();
 
-  return {
-    categories,
-    status,
-    tags,
-  };
-};
+    return {
+      categories,
+      status,
+      tags,
+    };
+  },
+  ["info-data"],
+  { revalidate: 3600 }
+);

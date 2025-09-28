@@ -32,11 +32,15 @@ model Post {
   reviews               Review[]
   status_votes          StatusVote[]
   views                 View[]
+  upvotes_count         Int          @default(0)
+  views_count           Int          @default(0)
 
   @@index([categoryId])
   @@index([status_id])
   @@index([user_id])
   @@index([created_at])
+  @@index([upvotes_count])
+  @@index([views_count])
 }
 
 model Tag {

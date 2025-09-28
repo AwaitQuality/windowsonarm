@@ -243,7 +243,7 @@ export async function GET() {
       upvotes: app._count.upvotes,
     }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         totalApps,
@@ -261,13 +261,18 @@ export async function GET() {
         averageRating: Math.round((reviewStats._avg.rating || 0) * 10) / 10,
         totalReviews: reviewStats._count,
         recentReviews: {
-          averageRating: Math.round((recentReviewStats._avg.rating || 0) * 10) / 10,
+          averageRating:
+            Math.round((recentReviewStats._avg.rating || 0) * 10) / 10,
           totalReviews: recentReviewStats._count,
         },
         mostReviewedApps: formattedMostReviewedApps,
         upvoteStats: formattedUpvoteStats,
       },
     });
+
+    response.headers.set("Cache-Control", "s-maxage=300, stale-while-revalidate");
+
+    return response;
   } catch (error) {
     console.error("Error fetching statistics:", error);
     return NextResponse.json(

@@ -101,14 +101,10 @@ export async function GET(request: NextRequest) {
       skip: cursor ? 1 : 0,
       orderBy: [
         {
-          upvotes: {
-            _count: "desc",
-          },
+          upvotes_count: "desc",
         },
         {
-          views: {
-            _count: "desc",
-          },
+          views_count: "desc",
         },
         {
           title: "asc",
@@ -116,16 +112,7 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // Calculate points for each post (10 points per upvote + 1 point per view)
-    const postsWithPoints = posts.map((post) => ({
-      ...post,
-      points: post._count.upvotes * 10 + post._count.views,
-    }));
-
-    // Sort posts by points in descending order
-    postsWithPoints.sort((a, b) => b.points - a.points);
-
-    const postsWithUpvoteStatus: FullPost[] = postsWithPoints.map((post) => ({
+    const postsWithUpvoteStatus: FullPost[] = posts.map((post) => ({
       ...post,
       tags: [],
       userUpvoted: post.upvotes?.length > 0,
@@ -209,25 +196,6 @@ export async function POST(request: NextRequest) {
       return ErrorResponse.json("Testing status (-1) not found");
     }
 
-    // Create or find tags
-    const tagObjects = validatedData.tags
-      ? await Promise.all(
-          validatedData.tags.map(async (tagName) => {
-            const existingTag = await prisma.tag.findFirst({
-              where: { name: tagName },
-            });
-
-            if (existingTag) {
-              return existingTag;
-            } else {
-              return prisma.tag.create({
-                data: { name: tagName },
-              });
-            }
-          })
-        )
-      : [];
-
     const post = await prisma.post.create({
       data: {
         title: validatedData.title,
@@ -244,7 +212,11 @@ export async function POST(request: NextRequest) {
         status_id: -1,
         user_id: userId,
         tags: {
-          connect: tagObjects.map((tag) => ({ id: tag.id })),
+          connectOrCreate:
+            validatedData.tags?.map((tag) => ({
+              where: { name: tag },
+              create: { name: tag },
+            })) || [],
         },
       },
       include: {

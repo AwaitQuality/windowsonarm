@@ -4,10 +4,13 @@ import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { headers } from "next/headers";
 
-export const getAppById = async (
-  id: string,
-  logView: boolean = true
-): Promise<FullPost | null> => {
+import { cache } from "react";
+
+export const getAppById = cache(
+  async (
+    id: string,
+    logView: boolean = true
+  ): Promise<FullPost | null> => {
   const userId = auth().userId;
   const { env } = getRequestContext();
   const prisma = getPrisma(env.DB);
@@ -21,31 +24,38 @@ export const getAppById = async (
       "unknown";
 
     if (logView) {
-      // Create view record if it doesn't exist for this IP and post
-      const viewExists = await prisma.view.findFirst({
-        where: {
-          post_id: id,
-          ip_address: ip,
-        },
-      });
+      try {
+        // 1. First, attempt to create the unique view record.
+        // This will throw an error if the ip_address has already viewed this post_id.
+        await prisma.view.create({
+          data: {
+            post_id: id,
+            ip_address: ip, // The viewer's IP address
+          },
+        });
 
-      if (!viewExists) {
-        console.log(id);
-        try {
-          await prisma.view.create({
-            data: {
-              post_id: id,
-              ip_address: ip,
+        // 2. If the above line does NOT throw an error, it means the view was unique.
+        // Now, we can safely increment our fast counter.
+        await prisma.post.update({
+          where: { id: id },
+          data: {
+            views_count: {
+              increment: 1,
             },
-          });
-        } catch (error: any) {
-          // Type the error as any to access properties
-          // Check if it's a Prisma error with code P2002 (unique constraint violation)
-          if (error?.code === "P2002") {
-            // View already exists, continue silently
-          } else {
-            throw error; // Re-throw if it's a different error
-          }
+          },
+        });
+      } catch (e: any) {
+        // 3. If an error occurs, check if it's the expected "unique constraint violation" error.
+        if (e?.code === "P2002") {
+          // This is a duplicate view. It's expected behavior, not an actual error.
+          // We simply do nothing, because the view is not unique and the counter should not be incremented.
+        } else {
+          // It was some other, unexpected database error.
+          // You should log this for debugging.
+          console.error(
+            "An unexpected error occurred while recording a view:",
+            e
+          );
         }
       }
     }
@@ -106,7 +116,7 @@ export const getAppById = async (
     console.error("Error fetching app by ID:", error);
     return null;
   }
-};
+});
 
 export async function getBlogPostById(id: string) {
   const { env } = getRequestContext();

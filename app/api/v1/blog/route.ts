@@ -22,28 +22,26 @@ export async function GET(request: NextRequest) {
       }
     });
 
-    const postsWithAuthors = await Promise.all(
-      posts.map(async (post) => {
-        try {
-          const user = await clerkClient().users.getUser(post.author_id);
-          return {
-            ...post,
-            author: {
-              username: user.username || `${user.firstName} ${user.lastName}`.trim(),
+    const authorIds = posts.map((post) => post.author_id);
+    const users = await clerkClient().users.getUserList({ userId: authorIds });
+    const usersById = new Map(users.data.map((user) => [user.id, user]));
+
+    const postsWithAuthors = posts.map((post) => {
+      const user = usersById.get(post.author_id);
+      return {
+        ...post,
+        author: user
+          ? {
+              username:
+                user.username || `${user.firstName} ${user.lastName}`.trim(),
               imageUrl: user.imageUrl,
             }
-          };
-        } catch (error) {
-          return {
-            ...post,
-            author: {
+          : {
               username: "Anonymous",
-              imageUrl: undefined
-            }
-          };
-        }
-      })
-    );
+              imageUrl: undefined,
+            },
+      };
+    });
 
     return DataResponse.json(postsWithAuthors);
   } catch (error: any) {
