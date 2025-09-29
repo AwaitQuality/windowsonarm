@@ -3,10 +3,12 @@ import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { auth } from "@clerk/nextjs/server";
+// Import polyfill before AWS SDK to provide DOMParser in Edge Runtime
+import "@/lib/polyfills";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-
+export const runtime = "edge";
 
 export interface FileUploadRequest {
   filename: string;
