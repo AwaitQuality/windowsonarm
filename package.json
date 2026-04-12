@@ -49,7 +49,7 @@
     "fluentui-next-appdir-directive": "^0.1.7",
     "fs": "0.0.1-security",
     "lucide-react": "^0.395.0",
-    "next": "14.2.4",
+    "next": "15.5.15",
     "pg": "^8.12.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
