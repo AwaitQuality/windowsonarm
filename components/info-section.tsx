@@ -12,28 +12,13 @@ import {
   Tab,
   TabList,
 } from "@fluentui/react-components";
-import * as FluentIcons from "@fluentui/react-icons";
 import { DismissRegular, GridDotsRegular } from "@fluentui/react-icons";
+import { UseQueryResult } from "@tanstack/react-query";
+
 import StatisticsBar from "@/components/ui/statistics-bar";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
-import { UseQueryResult } from "react-query";
-
-// Custom useMediaQuery hook
-const useMediaQuery = (query: string): boolean => {
-  const [matches, setMatches] = useState(false);
-
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    if (media.matches !== matches) {
-      setMatches(media.matches);
-    }
-    const listener = () => setMatches(media.matches);
-    media.addListener(listener);
-    return () => media.removeListener(listener);
-  }, [matches, query]);
-
-  return matches;
-};
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
+import { getFluentIcon } from "@/lib/hooks/useFluentIcon";
 
 interface InfoSectionProps {
   query: UseQueryResult<InfoResponse>;
@@ -45,6 +30,8 @@ interface InfoSectionProps {
   setSearchBox: (search: string) => void;
 }
 
+const ALL_CATEGORIES_VALUE = "tab0";
+
 const InfoSection: React.FC<InfoSectionProps> = ({
   selectedStatus,
   setSelectedStatus,
@@ -53,22 +40,19 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   query,
 }) => {
   const isDesktop = useMediaQuery("(min-width: 1300px)");
-  const [selectedValue, setSelectedValue] = useState("tab0");
+  const [selectedValue, setSelectedValue] = useState(ALL_CATEGORIES_VALUE);
 
-  const {
-    data: info,
-    isError: infoIsError,
-    isLoading: infoIsLoading,
-    isIdle: infoIsIdle,
-  } = query;
+  const { data: info, isError, isPending } = query;
 
   useEffect(() => {
     if (isDesktop) {
-      setSelectedCategory(selectedValue === "tab0" ? null : selectedValue);
+      setSelectedCategory(
+        selectedValue === ALL_CATEGORIES_VALUE ? null : selectedValue,
+      );
     }
   }, [isDesktop, selectedValue, setSelectedCategory]);
 
-  if (infoIsError) {
+  if (isError) {
     return (
       <MessageBar>
         <MessageBarBody>
@@ -90,7 +74,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
     );
   }
 
-  if (infoIsIdle || infoIsLoading || !info) {
+  if (isPending || !info) {
     return (
       <Skeleton
         aria-label="Loading Content"
@@ -111,8 +95,12 @@ const InfoSection: React.FC<InfoSectionProps> = ({
 
   const handleCategoryChange = (value: string) => {
     setSelectedValue(value);
-    setSelectedCategory(value === "tab0" ? null : value);
+    setSelectedCategory(value === ALL_CATEGORIES_VALUE ? null : value);
   };
+
+  const sortedCategories = [...info.categories].sort(
+    (a, b) => a.index - b.index,
+  );
 
   const renderCategorySelector = () => {
     if (isDesktop) {
@@ -121,45 +109,35 @@ const InfoSection: React.FC<InfoSectionProps> = ({
           selectedValue={selectedValue}
           onTabSelect={(_, data) => handleCategoryChange(data.value as string)}
         >
-          <Tab value="tab0" icon={<GridDotsRegular />}>
+          <Tab value={ALL_CATEGORIES_VALUE} icon={<GridDotsRegular />}>
             Show all
           </Tab>
-          {info.categories
-            .sort((a, b) => a.index - b.index)
-            .map((category) => {
-              // @ts-ignore
-              let Icon = FluentIcons[category.icon];
-
-              if (!Icon) {
-                Icon = FluentIcons.InfoRegular;
-              }
-
-              return (
-                <Tab key={category.id} value={category.id} icon={<Icon />}>
-                  {category.name}
-                </Tab>
-              );
-            })}
+          {sortedCategories.map((category) => {
+            const Icon = getFluentIcon(category.icon);
+            return (
+              <Tab key={category.id} value={category.id} icon={<Icon />}>
+                {category.name}
+              </Tab>
+            );
+          })}
         </TabList>
       );
-    } else {
-      return (
-        <Select
-          value={selectedValue}
-          onChange={(_, data) => handleCategoryChange(data.value as string)}
-          className={"w-full"}
-        >
-          <option value="tab0">Show all</option>
-          {info.categories
-            .sort((a, b) => a.index - b.index)
-            .map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-        </Select>
-      );
     }
+
+    return (
+      <Select
+        value={selectedValue}
+        onChange={(_, data) => handleCategoryChange(data.value as string)}
+        className={"w-full"}
+      >
+        <option value={ALL_CATEGORIES_VALUE}>Show all</option>
+        {sortedCategories.map((category) => (
+          <option key={category.id} value={category.id}>
+            {category.name}
+          </option>
+        ))}
+      </Select>
+    );
   };
 
   return (
@@ -169,16 +147,11 @@ const InfoSection: React.FC<InfoSectionProps> = ({
         selectedStatus={selectedStatus}
         setSelectedStatus={setSelectedStatus}
       />
-      <div
-        className={
-          "flex flex-col md:flex-row items-center justify-center gap-4 h-24 md:h-14 mb-4 w-full"
-        }
-      >
+      <div className="flex flex-col md:flex-row items-center justify-center gap-4 h-24 md:h-14 mb-4 w-full">
         {renderCategorySelector()}
         <SearchBox
-          className={"w-full"}
-          placeholder={"Search"}
-          style={{ maxWidth: "100%" }}
+          className="w-full max-w-full"
+          placeholder="Search"
           onChange={(_, e) => setSearchBox(e.value)}
         />
       </div>

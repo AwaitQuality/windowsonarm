@@ -1,9 +1,6 @@
 import React, { createContext, ReactNode, useContext, useState } from "react";
-import { FullPost } from "@/lib/types/prisma/prisma-types";
 
 interface AppContextType {
-  selectedApp: FullPost | null;
-  setSelectedApp: React.Dispatch<React.SetStateAction<FullPost | null>>;
   selectedCategory: string | null;
   setSelectedCategory: React.Dispatch<React.SetStateAction<string | null>>;
   selectedStatus: number | undefined | null;
@@ -19,10 +16,7 @@ interface AppProviderProps {
 }
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
-  const [selectedApp, setSelectedApp] = useState<FullPost | null>(null);
-
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-
   const [selectedStatus, setSelectedStatus] = useState<
     number | undefined | null
   >(undefined);
@@ -30,8 +24,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   return (
     <AppContext.Provider
       value={{
-        selectedApp,
-        setSelectedApp,
         selectedCategory,
         setSelectedCategory,
         selectedStatus,

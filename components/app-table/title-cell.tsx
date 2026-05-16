@@ -14,39 +14,38 @@ interface TitleCellProps {
   ) => void;
 }
 
-const TitleCell: React.FC<TitleCellProps> = ({ item, onUpvoteClick }) => {
-  return (
-    <TableCellLayout
-      media={
-        <div className="flex gap-2">
-          {item.upvotes && (
-            <Button
-              icon={
-                item.userUpvoted ? (
-                  <KeyboardShiftUppercase20Filled />
-                ) : (
-                  <KeyboardShiftUppercase20Regular />
-                )
-              }
-              appearance="transparent"
-              onClick={(e) => onUpvoteClick(e, item)}
-            />
-          )}
-          {item.icon_url ? (
-            <img
-              src={item.icon_url}
-              style={{ width: "32px", height: "32px", display: "inline" }}
-              alt={item.title}
-            />
-          ) : (
-            <Avatar aria-label={item.title} name={item.title} />
-          )}
-        </div>
-      }
-    >
-      {item.title}
-    </TableCellLayout>
-  );
-};
+const TitleCell: React.FC<TitleCellProps> = ({ item, onUpvoteClick }) => (
+  <TableCellLayout
+    media={
+      <div className="flex gap-2 items-center">
+        {item.upvotes && (
+          <Button
+            aria-label={item.userUpvoted ? "Remove upvote" : "Upvote"}
+            icon={
+              item.userUpvoted ? (
+                <KeyboardShiftUppercase20Filled />
+              ) : (
+                <KeyboardShiftUppercase20Regular />
+              )
+            }
+            appearance="transparent"
+            onClick={(e) => onUpvoteClick(e, item)}
+          />
+        )}
+        {item.icon_url ? (
+          <img
+            src={item.icon_url}
+            alt={`${item.title} icon`}
+            className="inline w-8 h-8 object-contain"
+          />
+        ) : (
+          <Avatar aria-label={item.title} name={item.title} />
+        )}
+      </div>
+    }
+  >
+    {item.title}
+  </TableCellLayout>
+);
 
 export default TitleCell;

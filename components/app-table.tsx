@@ -14,16 +14,12 @@ import {
   TableHeader,
   TableHeaderCell,
   TableRow,
-  Toast,
-  ToastBody,
-  ToastIntent,
-  ToastTitle,
-  useToastController,
 } from "@fluentui/react-components";
 import { AddCircleFilled, DismissRegular } from "@fluentui/react-icons";
 import dayjs from "dayjs";
 import { Post } from "@prisma/client";
-import { UseInfiniteQueryResult } from "react-query";
+import { UseInfiniteQueryResult } from "@tanstack/react-query";
+
 import AuthorCell from "@/components/app-table/author-cell";
 import StatusCell from "@/components/app-table/status-cell";
 import TitleCell from "@/components/app-table/title-cell";
@@ -31,23 +27,18 @@ import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { PostsResponse } from "@/app/api/v1/posts/route";
 import { aqApi } from "@/lib/axios/api";
 import { UpvoteRequest } from "@/app/api/v1/posts/upvote/route";
+import { useToast } from "@/lib/hooks/useToast";
 
 const useStyles = makeStyles({
   responsiveCell: {
     "@media (max-width: 640px)": {
-      "&:nth-child(n+3)": {
-        display: "none",
-      },
+      "&:nth-child(n+3)": { display: "none" },
     },
     "@media (max-width: 768px)": {
-      "&:nth-child(n+4)": {
-        display: "none",
-      },
+      "&:nth-child(n+4)": { display: "none" },
     },
     "@media (max-width: 1024px)": {
-      "&:nth-child(n+5)": {
-        display: "none",
-      },
+      "&:nth-child(n+5)": { display: "none" },
     },
   },
   tableContainer: {
@@ -61,7 +52,7 @@ interface Column {
   label: string;
 }
 
-const columns: Column[] = [
+const COLUMNS: Column[] = [
   { columnKey: "title", label: "Application" },
   { columnKey: "status", label: "Status" },
   { columnKey: "company", label: "Company" },
@@ -70,7 +61,7 @@ const columns: Column[] = [
 ];
 
 interface AppTableProps {
-  query: UseInfiniteQueryResult<PostsResponse, unknown>;
+  query: UseInfiniteQueryResult<{ pages: PostsResponse[] }, Error>;
   onAppClick?: (app: FullPost) => void;
 }
 
@@ -78,30 +69,16 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
   const styles = useStyles();
   const {
     data,
-    isLoading,
-    isIdle,
+    status,
     isError,
     isFetchingNextPage,
     fetchNextPage,
     hasNextPage,
   } = query;
+  const isPending = status === "pending";
 
   const [optimisticPosts, setOptimisticPosts] = useState<FullPost[]>([]);
-
-  const { dispatchToast } = useToastController("toaster");
-
-  const notify = (
-    title: string,
-    subtitle?: string,
-    intent: ToastIntent = "success",
-  ) =>
-    dispatchToast(
-      <Toast>
-        <ToastTitle>{title}</ToastTitle>
-        {subtitle && <ToastBody>{subtitle}</ToastBody>}
-      </Toast>,
-      { intent },
-    );
+  const { notify } = useToast();
 
   useEffect(() => {
     if (data) {
@@ -109,26 +86,19 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
     }
   }, [data]);
 
-  const handleScroll = async () => {
-    const scrollHeight = document.documentElement.scrollHeight;
-    const scrollTop = document.documentElement.scrollTop;
-    const clientHeight = document.documentElement.clientHeight;
-
-    if (scrollHeight <= clientHeight && hasNextPage && !isFetchingNextPage) {
-      await fetchNextPage();
-    } else if (
-      scrollTop + clientHeight >= scrollHeight &&
-      hasNextPage &&
-      !isFetchingNextPage
-    ) {
-      await fetchNextPage();
-    }
-  };
-
   useEffect(() => {
+    const handleScroll = () => {
+      const { scrollHeight, scrollTop, clientHeight } = document.documentElement;
+      const reachedBottom = scrollTop + clientHeight >= scrollHeight - 32;
+      const allFits = scrollHeight <= clientHeight;
+      if ((reachedBottom || allFits) && hasNextPage && !isFetchingNextPage) {
+        void fetchNextPage();
+      }
+    };
+
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [hasNextPage, isFetchingNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   if (isError) {
     return (
@@ -159,47 +129,36 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
   ) => {
     e.stopPropagation();
 
-    // Optimistically update the UI
-    setOptimisticPosts((prevPosts) =>
-      prevPosts.map((p) =>
-        p.id === post.id
-          ? {
-              ...p,
-              userUpvoted: !p.userUpvoted,
-            }
-          : p,
-      ),
-    );
+    const toggle = (posts: FullPost[]) =>
+      posts.map((p) =>
+        p.id === post.id ? { ...p, userUpvoted: !p.userUpvoted } : p,
+      );
+
+    setOptimisticPosts(toggle);
 
     const response = await aqApi.post<Post, UpvoteRequest>(
       "/api/v1/posts/upvote",
-      {
-        postId: post.id,
-      },
+      { postId: post.id },
     );
 
     if (!response.success) {
-      setOptimisticPosts((prevPosts) =>
-        prevPosts.map((p) =>
-          p.id === post.id
-            ? {
-                ...p,
-                userUpvoted: !p.userUpvoted,
-              }
-            : p,
-        ),
-      );
-
+      setOptimisticPosts(toggle);
       notify("Failed to upvote", response.error, "error");
     }
   };
 
   const renderCell = (item: FullPost, column: Column) => {
+    const displayStatus = item.effective_status ?? item.status;
     switch (column.columnKey) {
       case "title":
         return <TitleCell item={item} onUpvoteClick={onUpvoteClick} />;
       case "status":
-        return <StatusCell status={item.status} />;
+        return (
+          <StatusCell
+            status={displayStatus}
+            communityVoted={item.community_voted}
+          />
+        );
       case "company":
         return <TableCellLayout>{item.company}</TableCellLayout>;
       case "author":
@@ -213,10 +172,10 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
 
   return (
     <div className={styles.tableContainer}>
-      <Table arial-label="Responsive table">
+      <Table aria-label="Responsive table">
         <TableHeader>
           <TableRow>
-            {columns.map((column) => (
+            {COLUMNS.map((column) => (
               <TableHeaderCell
                 key={column.columnKey}
                 className={styles.responsiveCell}
@@ -227,14 +186,13 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {!isLoading &&
-            !isIdle &&
+          {!isPending &&
             optimisticPosts.map((item) => (
               <TableRow
                 key={item.id}
-                onClick={() => (onAppClick ? onAppClick(item) : undefined)}
+                onClick={() => onAppClick?.(item)}
               >
-                {columns.map((column) => (
+                {COLUMNS.map((column) => (
                   <TableCell
                     key={`${item.id}-${column.columnKey}`}
                     className={styles.responsiveCell}
@@ -246,7 +204,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
             ))}
         </TableBody>
       </Table>
-      {isLoading || isIdle ? (
+      {isPending ? (
         <ProgressBar thickness="large" />
       ) : (
         hasNextPage && (

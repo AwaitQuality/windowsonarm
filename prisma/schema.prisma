@@ -9,13 +9,15 @@ datasource db {
 }
 
 model Post {
-  id                    String   @id @default(uuid())
+  id                    String       @id @default(uuid())
   categoryId            String
   title                 String
   company               String
   user_id               String?
-  status_id             Int      @map("status")
+  status_id             Int          @map("status")
   status_hint           Int?
+  effective_status_id   Int?         @map("effective_status")
+  community_voted       Boolean      @default(false)
   description           String
   tags                  Tag[]
   app_url               String?
@@ -23,15 +25,18 @@ model Post {
   banner_url            String?
   icon_url              String?
   discord_forum_post_id String?
-  created_at            DateTime @default(now())
-  updated_at            DateTime @default(now())
+  created_at            DateTime     @default(now())
+  updated_at            DateTime     @default(now())
   update_description    String?
-  category              Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  status                Status   @relation(fields: [status_id], references: [id])
+  category              Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  status                Status       @relation("PostStatus", fields: [status_id], references: [id])
+  effective_status      Status?      @relation("PostEffectiveStatus", fields: [effective_status_id], references: [id])
   upvotes               Upvote[]
+  status_votes          StatusVote[]
 
   @@index([categoryId])
   @@index([status_id])
+  @@index([effective_status_id])
   @@index([user_id])
   @@index([created_at])
 }
@@ -55,14 +60,33 @@ model Upvote {
   @@index([post_id])
 }
 
+model StatusVote {
+  id         Int      @id @default(autoincrement())
+  user_id    String
+  post_id    String
+  status_id  Int
+  created_at DateTime @default(now())
+  updated_at DateTime @default(now())
+
+  post   Post   @relation(fields: [post_id], references: [id], onDelete: Cascade)
+  status Status @relation(fields: [status_id], references: [id])
+
+  @@unique([user_id, post_id])
+  @@index([post_id])
+  @@index([user_id])
+  @@index([status_id])
+}
+
 model Status {
-  id    Int    @id @default(autoincrement())
-  index Int    @default(0) @map("idx")
-  name  String @unique
-  color String
-  text  String
-  icon  String
-  posts Post[]
+  id                     Int          @id @default(autoincrement())
+  index                  Int          @default(0) @map("idx")
+  name                   String       @unique
+  color                  String
+  text                   String
+  icon                   String
+  posts                  Post[]       @relation("PostStatus")
+  effective_status_posts Post[]       @relation("PostEffectiveStatus")
+  status_votes           StatusVote[]
 
   @@index([name])
 }

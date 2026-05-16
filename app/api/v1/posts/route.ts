@@ -2,15 +2,17 @@ import { NextRequest } from "next/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
-import { postRequest } from "@/components/contribute-button";
 import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
-import { auth, clerkClient, getAuth } from "@clerk/nextjs/server";
+import { auth, getAuth } from "@clerk/nextjs/server";
 import axios from "axios";
+import { createPostSchema, PENDING_STATUS_ID } from "@/lib/schemas/post";
+import { recomputeEffectiveStatus } from "@/lib/backend/voting";
+import { lookupClerkUsersByIds } from "@/lib/hooks/useClerkUsersByPostIds";
 
 export const runtime = "edge";
 
-const POSTS_PER_PAGE = 40; // Number of posts to fetch per batch
+const POSTS_PER_PAGE = 40;
 
 export interface PostsResponse {
   category: string | null;
@@ -24,15 +26,12 @@ export async function GET(request: NextRequest) {
 
     const cursor = request.nextUrl.searchParams.get("cursor") || "";
     const category = request.nextUrl.searchParams.get("category");
-    let status = request.nextUrl.searchParams.get("status");
+    const statusParam = request.nextUrl.searchParams.get("status");
+    const status =
+      statusParam && statusParam !== "undefined" ? parseInt(statusParam) : null;
     const search = request.nextUrl.searchParams.get("search");
 
-    if (status === "undefined") {
-      status = null;
-    }
-
     const { env } = getRequestContext();
-
     const prisma = getPrisma(env.DB);
 
     const posts = await prisma.post.findMany({
@@ -41,7 +40,9 @@ export async function GET(request: NextRequest) {
       where: {
         AND: [
           category ? { category: { id: category } } : {},
-          status ? { status_id: parseInt(status) } : { status_id: { not: -1 } },
+          status !== null
+            ? { effective_status_id: status }
+            : { effective_status_id: { not: PENDING_STATUS_ID } },
           search
             ? {
                 OR: [
@@ -55,80 +56,34 @@ export async function GET(request: NextRequest) {
       },
       include: {
         status: true,
+        effective_status: true,
         upvotes: user.userId
-          ? {
-              where: {
-                user_id: user.userId,
-              },
-              take: 1,
-            }
+          ? { where: { user_id: user.userId }, take: 1 }
           : false,
         category: true,
-        _count: {
-          select: { upvotes: true },
-        },
+        _count: { select: { upvotes: true } },
       },
       skip: cursor ? 1 : 0,
-      orderBy: [
-        {
-          upvotes: {
-            _count: "desc",
-          },
-        },
-        {
-          title: "asc",
-        },
-      ],
+      orderBy: [{ upvotes: { _count: "desc" } }, { title: "asc" }],
     });
 
-    const postsWithUpvoteStatus: FullPost[] = posts.map((post) => ({
+    const userMap = await lookupClerkUsersByIds(posts.map((p) => p.user_id));
+
+    const postsWithUserData: FullPost[] = posts.map((post) => ({
       ...post,
       tags: [],
-      userUpvoted: false,
-      user: null,
+      userUpvoted: Boolean(post.upvotes && post.upvotes.length > 0),
+      user: post.user_id ? userMap.get(post.user_id) ?? null : null,
     }));
-
-    const userIds = postsWithUpvoteStatus
-      .map((post) => post.user_id)
-      .filter((userId) => userId) as string[];
-
-    let users = await clerkClient().users.getUserList({
-      userId: userIds,
-      limit: 100,
-    });
-
-    // TODO: Important: don't show unneeded user data
-    users.data.forEach((user) => {
-      postsWithUpvoteStatus.forEach((post) => {
-        if (post.user_id === user.id) {
-          post.user = user;
-        }
-      });
-    });
-
-    users = await clerkClient().users.getUserList({
-      externalId: userIds,
-      limit: 100,
-    });
-
-    users.data.forEach((user) => {
-      postsWithUpvoteStatus.forEach((post) => {
-        if (post.user_id === user.externalId) {
-          post.user = user;
-        }
-      });
-    });
 
     const nextCursor =
       posts.length === POSTS_PER_PAGE ? posts[posts.length - 1]?.id : null;
 
-    const response: PostsResponse = {
+    return DataResponse.json<PostsResponse>({
       category,
-      posts: postsWithUpvoteStatus,
+      posts: postsWithUserData,
       nextCursor,
-    };
-
-    return DataResponse.json(response);
+    });
   } catch (error: any) {
     return ErrorResponse.json(error.message);
   }
@@ -136,99 +91,85 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const postRequest = (await request.json()) as postRequest & {
-      tags: string[];
-    };
-
     const userId = auth().userId;
+    if (!userId) return ErrorResponse.json("Sign in required", { status: 401 });
 
-    if (!userId) {
-      return ErrorResponse.json("User not found");
-    }
+    const body = createPostSchema.parse(await request.json());
 
     const { env } = getRequestContext();
-
     const prisma = getPrisma(env.DB);
 
-    const status = await prisma.status.findUnique({
-      where: {
-        id: -1,
-      },
+    const pendingStatus = await prisma.status.findUnique({
+      where: { id: PENDING_STATUS_ID },
     });
-
-    if (!status) {
-      return ErrorResponse.json("Testing status (-1) not found");
+    if (!pendingStatus) {
+      return ErrorResponse.json("Pending status (-1) not found");
     }
 
-    // Create or find tags
-    const tagObjects = postRequest.tags
+    const tagObjects = body.tags
       ? await Promise.all(
-          postRequest.tags.map(async (tagName) => {
-            const existingTag = await prisma.tag.findFirst({
+          body.tags.map((tagName) =>
+            prisma.tag.upsert({
               where: { name: tagName },
-            });
-
-            if (existingTag) {
-              return existingTag;
-            } else {
-              return prisma.tag.create({
-                data: { name: tagName },
-              });
-            }
-          }),
+              update: {},
+              create: { name: tagName },
+            }),
+          ),
         )
       : [];
 
+    const statusHint =
+      body.status_hint && body.status_hint !== ""
+        ? parseInt(body.status_hint)
+        : null;
+
     const post = await prisma.post.create({
       data: {
-        title: postRequest.title,
-        description: postRequest.description,
-        company: postRequest.company,
-        categoryId: postRequest.categoryId,
-        app_url: postRequest.app_url,
-        banner_url: postRequest.banner_url,
-        icon_url: postRequest.icon_url,
-        status_hint: postRequest.status_hint
-          ? parseInt(postRequest.status_hint)
-          : null,
-        status_id: -1,
+        title: body.title,
+        description: body.description,
+        company: body.company,
+        categoryId: body.categoryId,
+        app_url: body.app_url || null,
+        banner_url: body.banner_url || null,
+        icon_url: body.icon_url || null,
+        status_hint: statusHint,
+        status_id: PENDING_STATUS_ID,
+        effective_status_id: PENDING_STATUS_ID,
         user_id: userId,
-        tags: {
-          connect: tagObjects.map((tag) => ({ id: tag.id })),
-        },
+        tags: { connect: tagObjects.map((tag) => ({ id: tag.id })) },
       },
-      include: {
-        tags: true,
-      },
+      include: { tags: true },
     });
 
-    // Create a forum post using Discord API
-    const forumPostData = {
-      name: `Discussion for ${post.title}`,
-      auto_archive_duration: 10080, // 7 days
-      message: {
-        content: `A new app has been added: ${post.title}\n\nDescription: ${post.description}\n\nDiscuss this app here!`,
-      },
-    };
+    await recomputeEffectiveStatus(prisma, post.id);
 
-    const forumPostResponse = await axios.post(
-      `https://discord.com/api/v10/channels/${env.DISCORD_FORUM_CHANNEL_ID}/threads`,
-      forumPostData,
-      {
-        headers: {
-          Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
+    if (env.DISCORD_FORUM_CHANNEL_ID && env.DISCORD_BOT_TOKEN) {
+      try {
+        const forumPost = await axios.post(
+          `https://discord.com/api/v10/channels/${env.DISCORD_FORUM_CHANNEL_ID}/threads`,
+          {
+            name: `Discussion for ${post.title}`,
+            auto_archive_duration: 10080,
+            message: {
+              content: `A new app has been added: ${post.title}\n\nDescription: ${post.description}\n\nDiscuss this app here!`,
+            },
+          },
+          {
+            headers: {
+              Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+          },
+        );
+
+        await prisma.post.update({
+          where: { id: post.id },
+          data: { discord_forum_post_id: forumPost.data.id },
+        });
+      } catch (discordError) {
+        console.error("Discord forum thread creation failed", discordError);
       }
-    );
-
-    // Update post with Discord forum post info
-    await prisma.post.update({
-      where: { id: post.id },
-      data: {
-        discord_forum_post_id: forumPostResponse.data.id,
-      },
-    });
+    }
 
     return DataResponse.json(post);
   } catch (error: any) {
