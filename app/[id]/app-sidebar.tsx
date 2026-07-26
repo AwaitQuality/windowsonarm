@@ -31,7 +31,6 @@ import { useUser } from "@clerk/nextjs";
 import dayjs from "dayjs";
 import { aqApi } from "@/lib/http/client";
 import { useToast } from "@/lib/hooks/useToast";
-import StatusVote from "@/components/post/status-vote";
 import EditPost from "@/components/post/edit-post";
 import dynamic from "next/dynamic";
 import { useQueryClient } from "@tanstack/react-query";
@@ -126,8 +125,6 @@ export default function AppSidebar({ app, info }: AppSidebarProps) {
           <GoogleAdsense className="w-full h-full" />
         </div>
       </Card>
-
-      <StatusVote app={app} info={info} />
 
       <Card
         className="rounded-lg shadow-md p-6"

@@ -9,6 +9,7 @@ import { PENDING_STATUS_ID } from "@/lib/schemas/post";
 import { Container } from "@/components/ui/container";
 import AppHeader from "./app-header";
 import AppContent from "./app-content";
+import StatusVoteCard from "@/components/voting/status-vote-card";
 
 
 export async function generateMetadata(
@@ -74,6 +75,8 @@ export default async function AppPage(props: { params: Promise<{ id: string }> }
     <div className="min-h-screen">
       <AppHeader app={app} />
       <Container>
+        {/* First screenful, not the bottom of the sidebar. */}
+        <StatusVoteCard app={app} info={info} />
         <AppContent app={app} info={info} />
       </Container>
     </div>
