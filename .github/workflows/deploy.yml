@@ -3,11 +3,11 @@ name: Deploy to Cloudflare Workers
 on:
   push:
     branches: [master]
-    # Documentation-only changes do not need a deploy.
+    # Documentation-only changes do not need a deploy. Workflow changes are NOT
+    # ignored: a change to this file should prove itself by running.
     paths-ignore:
       - "**/*.md"
       - "docs/**"
-      - ".github/**"
   # Lets you redeploy the current master without pushing an empty commit.
   workflow_dispatch:
 
