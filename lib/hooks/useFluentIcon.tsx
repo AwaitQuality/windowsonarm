@@ -10,6 +10,7 @@ import {
   OpenRegular,
   PeopleRegular,
   QuestionFilled,
+  SubtractFilled,
   SubtractSquareRegular,
   TvRegular,
 } from "@fluentui/react-icons";
@@ -27,6 +28,10 @@ import type { FluentIcon as FluentIconComponent } from "@fluentui/react-icons";
  * too. Current contents:
  *   SELECT DISTINCT icon FROM Status;
  *   SELECT DISTINCT icon FROM Category;
+ *
+ * The map must cover BOTH databases: the local D1 and production disagree on
+ * status icons (local Emulated is DismissRegular, production is SubtractFilled),
+ * and a name that is missing here silently renders the InfoRegular fallback.
  */
 const ICONS: Record<string, FluentIconComponent> = {
   // Status
@@ -34,6 +39,7 @@ const ICONS: Record<string, FluentIconComponent> = {
   CheckmarkRegular,
   DismissRegular,
   OpenRegular,
+  SubtractFilled,
   SubtractSquareRegular,
   // Category
   ArrowTrendingLinesFilled,
