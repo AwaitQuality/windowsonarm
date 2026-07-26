@@ -1,0 +1,92 @@
+name: Apply D1 migrations (production)
+
+# Deliberately never triggered by a push. Migration 0010 once emptied 331k View
+# rows on production because a table rebuild cascaded child rows away, and the
+# apply reported success while doing it. This workflow enforces the two things
+# that would have caught it: an export first, and a per-table row count either
+# side of the apply.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type MIGRATE to confirm you want to alter the production database'
+        required: true
+        default: ''
+
+concurrency:
+  group: migrate-d1
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_D1_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+    steps:
+      - name: Check confirmation
+        if: inputs.confirm != 'MIGRATE'
+        run: |
+          echo "::error::Confirmation missing. Re-run and type MIGRATE."
+          exit 1
+
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Show pending migrations
+        run: pnpm exec wrangler d1 migrations list DB --remote
+
+      - name: Back up the database
+        run: |
+          mkdir -p backup
+          pnpm exec wrangler d1 export DB --remote \
+            --output="backup/prod-d1-$(date -u +%Y%m%d-%H%M%S).sql"
+          ls -lh backup
+
+      # Kept for 90 days: this is the only route back from a bad migration.
+      - name: Upload the backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: d1-backup-${{ github.run_id }}
+          path: backup/*.sql
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Row counts before
+        run: |
+          pnpm exec wrangler d1 execute DB --remote --json --command \
+            "SELECT (SELECT COUNT(*) FROM Post) posts, (SELECT COUNT(*) FROM BlogPost) blogs, (SELECT COUNT(*) FROM Upvote) upvotes, (SELECT COUNT(*) FROM Review) reviews, (SELECT COUNT(*) FROM View) views, (SELECT COUNT(*) FROM StatusVote) votes, (SELECT COUNT(*) FROM _PostToTag) tags;" \
+            > before.json
+          cat before.json
+
+      - name: Apply migrations
+        run: pnpm exec wrangler d1 migrations apply DB --remote
+
+      - name: Row counts after, and fail on a wipe
+        run: |
+          pnpm exec wrangler d1 execute DB --remote --json --command \
+            "SELECT (SELECT COUNT(*) FROM Post) posts, (SELECT COUNT(*) FROM BlogPost) blogs, (SELECT COUNT(*) FROM Upvote) upvotes, (SELECT COUNT(*) FROM Review) reviews, (SELECT COUNT(*) FROM View) views, (SELECT COUNT(*) FROM StatusVote) votes, (SELECT COUNT(*) FROM _PostToTag) tags;" \
+            > after.json
+          node -e '
+            const fs = require("fs");
+            const read = (f) => JSON.parse(fs.readFileSync(f, "utf8"))[0].results[0];
+            const before = read("before.json");
+            const after = read("after.json");
+            let emptied = [];
+            console.log("table".padEnd(12), "before".padStart(10), "after".padStart(10));
+            for (const key of Object.keys(before)) {
+              console.log(key.padEnd(12), String(before[key]).padStart(10), String(after[key]).padStart(10));
+              if (before[key] > 0 && after[key] === 0) emptied.push(key);
+            }
+            if (emptied.length) {
+              console.log("::error::Migration emptied: " + emptied.join(", ") + ". Restore from the uploaded backup artifact.");
+              process.exit(1);
+            }
+          '
