@@ -9,11 +9,6 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
-  Toast,
-  ToastBody,
-  ToastIntent,
-  ToastTitle,
-  useToastController,
   Text,
   Card,
   Label,
@@ -31,12 +26,10 @@ import { z } from "zod";
 import FileUploader from "@/components/ui/upload-button";
 import axios from "axios";
 import { aqApi } from "@/lib/axios/api";
+import { uploadFileToR2 } from "@/lib/hooks/useFileUpload";
+import { useToast } from "@/lib/hooks/useToast";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
-import {
-  FileUploadRequest,
-  FileUploadResponse,
-} from "@/app/api/v1/upload/route";
 
 const formSchema = z.object({
   title: z.string().max(255),
@@ -63,7 +56,7 @@ export default function EditPost({ post, info, className }: EditPostProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { user } = useUser();
-  const { dispatchToast } = useToastController("toaster");
+  const { notify } = useToast();
   const isEditable = user?.publicMetadata.role === "admin";
 
   const form = useForm<EditPostRequest>({
@@ -82,43 +75,10 @@ export default function EditPost({ post, info, className }: EditPostProps) {
     },
   });
 
-  const notify = (
-    title: string,
-    subtitle?: string,
-    intent: ToastIntent = "success",
-  ) =>
-    dispatchToast(
-      <Toast>
-        <ToastTitle>{title}</ToastTitle>
-        {subtitle && <ToastBody>{subtitle}</ToastBody>}
-      </Toast>,
-      { intent },
-    );
-
-  const uploadFile = async (file: File): Promise<string> => {
-    const response = await aqApi.post<FileUploadResponse, FileUploadRequest>(
-      "/api/v1/upload",
-      {
-        filename: file.name,
-        contentType: file.type,
-      },
-    );
-    if (!response.success) {
-      throw new Error("Failed to get upload URL");
-    }
-    const { url, downloadUrl } = response.data;
-    await axios.put(url, file, {
-      headers: {
-        "Content-Type": file.type,
-      },
-    });
-    return downloadUrl;
-  };
-
   const handleEdit = async (values: EditPostRequest) => {
     try {
       if (selectedFile) {
-        values.icon_url = await uploadFile(selectedFile);
+        values.icon_url = await uploadFileToR2(selectedFile);
       }
       const response = await aqApi.put(`/api/v1/posts/${post.id}`, values);
       if (response.success) {

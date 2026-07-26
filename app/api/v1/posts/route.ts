@@ -2,13 +2,12 @@ import { NextRequest } from "next/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
-import { postRequest } from "@/components/contribute-button";
 import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
-import { auth, clerkClient, getAuth } from "@clerk/nextjs/server";
+import { auth, getAuth } from "@clerk/nextjs/server";
 import axios from "axios";
-import { z } from "zod";
-import { PENDING_STATUS_ID } from "@/lib/backend/voting";
+import { createPostSchema, PENDING_STATUS_ID } from "@/lib/schemas/post";
+import { lookupClerkUsersByIds } from "@/lib/hooks/useClerkUsersByPostIds";
 
 export const runtime = "edge";
 
@@ -19,32 +18,6 @@ export interface PostsResponse {
   posts: FullPost[];
   nextCursor: string | null;
 }
-
-// Add validation schema for POST requests
-const createPostSchema = z.object({
-  title: z.string().max(255),
-  company: z.string().max(255),
-  description: z.string().min(50),
-  tags: z.array(z.string()).max(10).optional(),
-  app_url: z
-    .string()
-    .url({ message: "Please enter a valid URL" })
-    .optional()
-    .or(z.literal("")),
-  community_url: z
-    .string()
-    .url({ message: "Please enter a valid URL" })
-    .optional()
-    .or(z.literal("")),
-  banner_url: z
-    .string()
-    .url({ message: "Please enter a valid URL" })
-    .optional()
-    .or(z.literal("")),
-  status_hint: z.string(),
-  icon_url: z.string().optional(),
-  categoryId: z.string(),
-});
 
 export async function GET(request: NextRequest) {
   try {
@@ -127,35 +100,12 @@ export async function GET(request: NextRequest) {
       },
     }));
 
-    const userIds = postsWithUpvoteStatus
-      .map((post) => post.user_id)
-      .filter((userId) => userId) as string[];
+    const userMap = await lookupClerkUsersByIds(
+      postsWithUpvoteStatus.map((post) => post.user_id)
+    );
 
-    let users = await clerkClient().users.getUserList({
-      userId: userIds,
-      limit: 100,
-    });
-
-    // TODO: Important: don't show unneeded user data
-    users.data.forEach((user) => {
-      postsWithUpvoteStatus.forEach((post) => {
-        if (post.user_id === user.id) {
-          post.user = user;
-        }
-      });
-    });
-
-    users = await clerkClient().users.getUserList({
-      externalId: userIds,
-      limit: 100,
-    });
-
-    users.data.forEach((user) => {
-      postsWithUpvoteStatus.forEach((post) => {
-        if (post.user_id === user.externalId) {
-          post.user = user;
-        }
-      });
+    postsWithUpvoteStatus.forEach((post) => {
+      post.user = post.user_id ? userMap.get(post.user_id) ?? null : null;
     });
 
     const nextCursor =
@@ -192,7 +142,7 @@ export async function POST(request: NextRequest) {
 
     const status = await prisma.status.findUnique({
       where: {
-        id: -1,
+        id: PENDING_STATUS_ID,
       },
     });
 

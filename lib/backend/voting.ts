@@ -1,10 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
-
-/** Status id used for posts that have not been reviewed by an admin yet. */
-export const PENDING_STATUS_ID = -1;
-
-/** Number of votes a single status needs before the community decides it. */
-export const COMMUNITY_VOTE_THRESHOLD = 2;
+import {
+  COMMUNITY_VOTE_THRESHOLD,
+  PENDING_STATUS_ID,
+} from "@/lib/schemas/post";
 
 export interface VoteTally {
   status_id: number;

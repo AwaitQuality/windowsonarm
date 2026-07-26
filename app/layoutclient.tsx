@@ -1,7 +1,7 @@
 // Separate client component
 "use client";
 
-import { QueryClient, QueryClientProvider } from "react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppProvider } from "@/contexts/AppContext";
 import { Providers } from "@/lib/providers";
 import { ClerkProvider } from "@clerk/nextjs";

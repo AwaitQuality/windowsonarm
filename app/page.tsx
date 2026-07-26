@@ -2,7 +2,8 @@
 
 import React from "react";
 import { aqApi } from "@/lib/axios/api";
-import { useInfiniteQuery, useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
+import { useInfoQuery, usePostsQuery } from "@/lib/hooks/usePosts";
 import {
   Button,
   Display,
@@ -66,64 +67,26 @@ export default function Home() {
   const { user } = useUser();
   const isAdmin = user?.publicMetadata?.role === "admin";
 
-  const fetchPosts = async ({ pageParam = null }) => {
-    const response = await aqApi.get<PostsResponse>(
-      `/api/v1/posts?cursor=${pageParam || ""}&category=${selectedCategory || ""}&status=${selectedStatus === null ? "" : selectedStatus}&search=${searchBox}&verified=true`
-    );
+  const infoQuery = useInfoQuery(selectedStatus);
 
-    if (!response.success) {
-      throw new Error(response.error);
-    }
+  const query = usePostsQuery({
+    category: selectedCategory,
+    status: selectedStatus,
+    search: searchBox,
+  });
 
-    return response.data;
-  };
-
-  const fetchInfo = async () => {
-    const response = await aqApi.get<InfoResponse>("/api/v1/info");
-
-    if (!response.success) {
-      throw new Error(response.error);
-    }
-
-    return response.data;
-  };
-
-  const infoQuery = useQuery(
-    ["info", selectedStatus === null ? "default" : selectedStatus],
-    fetchInfo,
-    {
-      refetchOnWindowFocus: false,
-      cacheTime: 1000 * 60 * 5,
-      staleTime: 1000 * 60 * 5,
-      keepPreviousData: true,
-    }
-  );
-
-  const query = useInfiniteQuery(
-    ["posts", selectedCategory, selectedStatus, searchBox],
-    fetchPosts,
-    {
-      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-      cacheTime: 1000 * 60 * 5,
-      staleTime: 1000 * 60 * 5,
-    }
-  );
-
-  const { data: blogPosts = [], isLoading: blogLoading } = useQuery<BlogPost[]>(
-    "blog-posts",
-    async () => {
+  const { data: blogPosts = [], isPending: blogLoading } = useQuery<BlogPost[]>({
+    queryKey: ["blog-posts"],
+    queryFn: async () => {
       const response = await aqApi.get<BlogPost[]>("/api/v1/blog");
-      console.log('API Response:', response);
       if (!response.success) {
         throw new Error(response.error);
       }
       return response.data;
     },
-    {
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 60 * 5,
-    }
-  );
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5,
+  });
 
   // Helper functions to update URL state
   const setSelectedCategory = (newCategory: string | null) => {

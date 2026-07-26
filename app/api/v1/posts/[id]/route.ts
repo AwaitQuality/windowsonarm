@@ -3,26 +3,13 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import getPrisma from "@/lib/db/prisma";
 import DataResponse from "@/lib/backend/response/DataResponse";
-import { z } from "zod";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { getAppById } from "@/lib/api";
 import { recomputeEffectiveStatus } from "@/lib/backend/voting";
+import { updatePostSchema } from "@/lib/schemas/post";
 import axios from "axios";
 
 export const runtime = "edge";
-
-const updatePostSchema = z.object({
-  title: z.string().max(255),
-  company: z.string().max(255),
-  description: z.string(),
-  tags: z.array(z.string()).max(15).optional(),
-  app_url: z.string().url().optional().nullable(),
-  community_url: z.string().optional().nullable(),
-  banner_url: z.string().optional().nullable(),
-  status_id: z.number(),
-  icon_url: z.string().optional().nullable(),
-  categoryId: z.string(),
-});
 
 export async function GET(
   request: NextRequest,

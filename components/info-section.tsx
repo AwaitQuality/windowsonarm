@@ -16,24 +16,8 @@ import * as FluentIcons from "@fluentui/react-icons";
 import { DismissRegular, GridDotsRegular } from "@fluentui/react-icons";
 import StatisticsBar from "@/components/ui/statistics-bar";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
-import { UseQueryResult } from "react-query";
-
-// Custom useMediaQuery hook
-const useMediaQuery = (query: string): boolean => {
-  const [matches, setMatches] = useState(false);
-
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    if (media.matches !== matches) {
-      setMatches(media.matches);
-    }
-    const listener = () => setMatches(media.matches);
-    media.addListener(listener);
-    return () => media.removeListener(listener);
-  }, [matches, query]);
-
-  return matches;
-};
+import type { UseQueryResult } from "@tanstack/react-query";
+import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
 
 interface InfoSectionProps {
   query: UseQueryResult<InfoResponse>;
@@ -58,8 +42,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   const {
     data: info,
     isError: infoIsError,
-    isLoading: infoIsLoading,
-    isIdle: infoIsIdle,
+    isPending: infoIsPending,
   } = query;
 
   useEffect(() => {
@@ -88,7 +71,7 @@ const InfoSection: React.FC<InfoSectionProps> = ({
     );
   }
 
-  if (infoIsIdle || infoIsLoading || !info) {
+  if (infoIsPending || infoIsPending || !info) {
     return (
       <Skeleton
         aria-label="Loading Content"

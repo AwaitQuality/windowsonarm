@@ -15,11 +15,6 @@ import {
   TableHeader,
   TableHeaderCell,
   TableRow,
-  Toast,
-  ToastBody,
-  ToastIntent,
-  ToastTitle,
-  useToastController,
 } from "@fluentui/react-components";
 import {
   AddCircleFilled,
@@ -30,7 +25,8 @@ import {
 } from "@fluentui/react-icons";
 import dayjs from "dayjs";
 import { Post } from "@prisma/client";
-import { UseInfiniteQueryResult } from "react-query";
+import type { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query";
+import { useToast } from "@/lib/hooks/useToast";
 import AuthorCell from "@/components/app-table/author-cell";
 import StatusCell from "@/components/app-table/status-cell";
 import TitleCell from "@/components/app-table/title-cell";
@@ -137,7 +133,7 @@ const columns: Column[] = [
 ];
 
 interface AppTableProps {
-  query: UseInfiniteQueryResult<PostsResponse, unknown>;
+  query: UseInfiniteQueryResult<InfiniteData<PostsResponse>, Error>;
   onAppClick?: (app: FullPost) => void;
 }
 
@@ -145,8 +141,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
   const styles = useStyles();
   const {
     data,
-    isLoading,
-    isIdle,
+    isPending,
     isError,
     isFetchingNextPage,
     fetchNextPage,
@@ -155,20 +150,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
 
   const [optimisticPosts, setOptimisticPosts] = useState<FullPost[]>([]);
 
-  const { dispatchToast } = useToastController("toaster");
-
-  const notify = (
-    title: string,
-    subtitle?: string,
-    intent: ToastIntent = "success"
-  ) =>
-    dispatchToast(
-      <Toast>
-        <ToastTitle>{title}</ToastTitle>
-        {subtitle && <ToastBody>{subtitle}</ToastBody>}
-      </Toast>,
-      { intent }
-    );
+  const { notify } = useToast();
 
   useEffect(() => {
     if (data) {
@@ -367,8 +349,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
           </TableRow>
 
           {/* Regular Rows */}
-          {!isLoading &&
-            !isIdle &&
+          {!isPending &&
             optimisticPosts.map((item) => (
               <TableRow
                 key={item.id}
@@ -387,7 +368,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
             ))}
         </TableBody>
       </Table>
-      {isLoading || isIdle ? (
+      {isPending ? (
         <ProgressBar thickness="large" />
       ) : (
         hasNextPage && (

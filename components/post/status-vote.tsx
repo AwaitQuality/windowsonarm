@@ -1,87 +1,52 @@
 import React from "react";
 import {
+  Body2,
   Button,
   Card,
+  MessageBar,
+  MessageBarBody,
   Radio,
   RadioGroup,
   Subtitle1,
-  Toast,
-  ToastBody,
-  ToastIntent,
-  ToastTitle,
-  useToastController,
   Skeleton,
   SkeletonItem,
 } from "@fluentui/react-components";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import { aqApi } from "@/lib/axios/api";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
-import { useMutation, useQuery, useQueryClient } from "react-query";
-import type { VoteStatusResponse } from "@/app/api/v1/posts/[id]/vote-status/route";
+import { FullPost } from "@/lib/types/prisma/prisma-types";
+import { useToast } from "@/lib/hooks/useToast";
+import { useStatusVote } from "@/lib/hooks/useStatusVote";
+import { COMMUNITY_VOTE_THRESHOLD, PENDING_STATUS_ID } from "@/lib/schemas/post";
+import CommunityVoteIndicator from "@/components/voting/community-vote-indicator";
 
 interface StatusVoteProps {
-  postId: string;
+  app: FullPost;
   info: InfoResponse;
 }
 
-type VoteResponse = VoteStatusResponse;
+export default function StatusVote({ app, info }: StatusVoteProps) {
+  const { isSignedIn, isLoaded, userId } = useAuth();
+  const { notify } = useToast();
+  const { summary, isPending, vote, clearVote } = useStatusVote(app.id);
 
-export default function StatusVote({ postId, info }: StatusVoteProps) {
-  const { isSignedIn } = useUser();
-  const { dispatchToast } = useToastController("toaster");
-  const queryClient = useQueryClient();
+  const isSubmitter = Boolean(userId && app.user_id === userId);
+  const submitterLockedByHint = isSubmitter && app.status_hint != null;
+  const busy = vote.isPending || clearVote.isPending;
 
-  const notify = (
-    title: string,
-    subtitle?: string,
-    intent: ToastIntent = "success"
-  ) =>
-    dispatchToast(
-      <Toast>
-        <ToastTitle>{title}</ToastTitle>
-        {subtitle && <ToastBody>{subtitle}</ToastBody>}
-      </Toast>,
-      { intent }
-    );
+  const handleVote = (statusId: number) =>
+    vote.mutate(statusId, {
+      onSuccess: () => notify("Vote recorded"),
+      onError: (error) => notify("Error recording vote", error.message, "error"),
+    });
 
-  const { data, isLoading } = useQuery<VoteResponse>(
-    ["status-votes", postId],
-    async () => {
-      const response = await aqApi.get<VoteResponse>(`/api/v1/posts/${postId}/vote-status`);
-      if (!response.success) {
-        throw new Error(response.error);
-      }
-      return response.data;
-    },
-    {
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 60,
-    }
-  );
+  const handleClear = () =>
+    clearVote.mutate(undefined, {
+      onSuccess: () => notify("Vote cleared"),
+      onError: (error) => notify("Error clearing vote", error.message, "error"),
+    });
 
-  const voteMutation = useMutation<VoteResponse, Error, number>(
-    async (statusId: number) => {
-      const response = await aqApi.post<VoteResponse>(`/api/v1/posts/${postId}/vote-status`, {
-        status_id: statusId,
-      });
-      if (!response.success) {
-        throw new Error(response.error);
-      }
-      return response.data;
-    },
-    {
-      onSuccess: () => {
-        notify("Vote recorded successfully");
-        queryClient.invalidateQueries(["status-votes", postId]);
-      },
-      onError: (error: Error) => {
-        notify("Error recording vote", error.message, "error");
-      },
-    }
-  );
-
-  if (isLoading) {
+  if (isPending) {
     return (
       <Card
         className="rounded-lg shadow-md p-6 mb-8"
@@ -106,36 +71,63 @@ export default function StatusVote({ postId, info }: StatusVoteProps) {
       appearance={"filled-alternative"}
       size="large"
     >
-      <Subtitle1 className="mb-4">Vote on App Status</Subtitle1>
+      <Subtitle1 className="mb-2 flex items-center gap-2">
+        Vote on App Status
+        {app.community_voted && <CommunityVoteIndicator size={16} />}
+      </Subtitle1>
+      <Body2 className="block mb-4 text-gray-500">
+        Once {COMMUNITY_VOTE_THRESHOLD} or more users agree on a status that
+        differs from the admin-set one, that status is shown automatically with a
+        subtle indicator.
+      </Body2>
       <div className="space-y-4">
-        {!isSignedIn ? (
+        {!isLoaded ? null : !isSignedIn ? (
           <Link href="/auth/signin">
             <Button>Sign in to vote</Button>
           </Link>
+        ) : submitterLockedByHint ? (
+          <MessageBar intent="info">
+            <MessageBarBody>
+              Your initial status hint counts as your vote and can&apos;t be
+              changed.
+            </MessageBarBody>
+          </MessageBar>
         ) : (
-          <RadioGroup
-            value={data?.userVote?.toString() || ""}
-            onChange={(_, data) => voteMutation.mutate(Number(data.value))}
-          >
-            {info.status
-              .filter((s) => s.id >= 0)
-              .map((status) => (
-                <Radio
-                  key={status.id}
-                  value={status.id.toString()}
-                  label={
-                    <div className="flex items-center gap-2">
-                      <span>{status.name}</span>
-                      <span className="text-sm text-gray-500">
-                        ({data?.votes?.find((v) => v.status_id === status.id)?.count || 0}{" "}
-                        votes)
-                      </span>
-                    </div>
-                  }
-                  disabled={voteMutation.isLoading}
-                />
-              ))}
-          </RadioGroup>
+          <>
+            <RadioGroup
+              value={summary?.userVote?.toString() || ""}
+              onChange={(_, data) => handleVote(Number(data.value))}
+            >
+              {info.status
+                .filter((s) => s.id !== PENDING_STATUS_ID)
+                .map((status) => {
+                  const count =
+                    summary?.votes?.find((v) => v.status_id === status.id)
+                      ?.count || 0;
+
+                  return (
+                    <Radio
+                      key={status.id}
+                      value={status.id.toString()}
+                      label={
+                        <div className="flex items-center gap-2">
+                          <span>{status.name}</span>
+                          <span className="text-sm text-gray-500">
+                            ({count} vote{count === 1 ? "" : "s"})
+                          </span>
+                        </div>
+                      }
+                      disabled={busy}
+                    />
+                  );
+                })}
+            </RadioGroup>
+            {summary?.userVote != null && (
+              <Button size="small" onClick={handleClear} disabled={busy}>
+                Clear my vote
+              </Button>
+            )}
+          </>
         )}
       </div>
     </Card>

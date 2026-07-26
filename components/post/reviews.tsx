@@ -16,12 +16,7 @@ import {
   Spinner,
   Subtitle1,
   Text,
-  Toast,
-  ToastBody,
-  ToastIntent,
-  ToastTitle,
   tokens,
-  useToastController,
 } from "@fluentui/react-components";
 import {
   DeleteRegular,
@@ -33,7 +28,8 @@ import { useUser } from "@clerk/nextjs";
 import { aqApi } from "@/lib/axios/api";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useMutation, useQuery, useQueryClient } from "react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/lib/hooks/useToast";
 
 dayjs.extend(relativeTime);
 
@@ -191,40 +187,25 @@ export default function Reviews({ postId }: { postId: string }) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [editingReview, setEditingReview] = useState<Review | null>(null);
-  const { dispatchToast } = useToastController();
+  const { notify } = useToast();
   const queryClient = useQueryClient();
   const isAdmin = user?.publicMetadata?.role === "admin";
 
-  const notify = (
-    title: string,
-    subtitle?: string,
-    intent: ToastIntent = "success",
-  ) =>
-    dispatchToast(
-      <Toast>
-        <ToastTitle>{title}</ToastTitle>
-        {subtitle && <ToastBody>{subtitle}</ToastBody>}
-      </Toast>,
-      { intent },
-    );
-
-  const { data: reviews = [], isLoading } = useQuery<Review[]>(
-    ["reviews", postId],
-    async () => {
+  const { data: reviews = [], isPending } = useQuery<Review[]>({
+    queryKey: ["reviews", postId],
+    queryFn: async () => {
       const response = await aqApi.get<Review[]>(`/api/v1/posts/${postId}/reviews`);
       if (!response.success) {
         throw new Error(response.error);
       }
       return response.data;
     },
-    {
-      refetchOnWindowFocus: false,
-      staleTime: 1000 * 60,
-    }
-  );
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60,
+  });
 
-  const submitReviewMutation = useMutation<Review, Error, { rating: number; comment?: string }>(
-    async ({ rating, comment }) => {
+  const submitReviewMutation = useMutation<Review, Error, { rating: number; comment?: string }>({
+    mutationFn: async ({ rating, comment }) => {
       const response = await aqApi.post<Review>(`/api/v1/posts/${postId}/reviews`, {
         rating,
         comment: comment?.trim() || undefined,
@@ -234,23 +215,21 @@ export default function Reviews({ postId }: { postId: string }) {
       }
       return response.data;
     },
-    {
-      onSuccess: () => {
-        notify(editingReview ? "Review updated successfully" : "Review submitted successfully");
-        setIsReviewDialogOpen(false);
-        setRating(0);
-        setComment("");
-        setEditingReview(null);
-        queryClient.invalidateQueries(["reviews", postId]);
-      },
-      onError: (error: Error) => {
-        notify("Error submitting review", error.message, "error");
-      },
-    }
-  );
+    onSuccess: () => {
+      notify(editingReview ? "Review updated successfully" : "Review submitted successfully");
+      setIsReviewDialogOpen(false);
+      setRating(0);
+      setComment("");
+      setEditingReview(null);
+      queryClient.invalidateQueries({ queryKey: ["reviews", postId] });
+    },
+    onError: (error: Error) => {
+      notify("Error submitting review", error.message, "error");
+    },
+  });
 
-  const deleteReviewMutation = useMutation(
-    async (reviewId: string) => {
+  const deleteReviewMutation = useMutation({
+    mutationFn: async (reviewId: string) => {
       const response = await aqApi.delete(
         `/api/v1/posts/${postId}/reviews?reviewId=${reviewId}`,
       );
@@ -259,16 +238,14 @@ export default function Reviews({ postId }: { postId: string }) {
       }
       return response.data;
     },
-    {
-      onSuccess: () => {
-        notify("Review deleted successfully");
-        queryClient.invalidateQueries(["reviews", postId]);
-      },
-      onError: (error: Error) => {
-        notify("Error deleting review", error.message, "error");
-      },
+    onSuccess: () => {
+      notify("Review deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["reviews", postId] });
     },
-  );
+    onError: (error: Error) => {
+      notify("Error deleting review", error.message, "error");
+    },
+  });
 
   const handleEditClick = (review: Review) => {
     setEditingReview(review);
@@ -287,7 +264,7 @@ export default function Reviews({ postId }: { postId: string }) {
     }
   };
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className={styles.root}>
         <div className="flex justify-center items-center h-32">
@@ -414,9 +391,9 @@ export default function Reviews({ postId }: { postId: string }) {
                           icon={<DeleteRegular />}
                           appearance="subtle"
                           onClick={() => handleDeleteReview(review.id)}
-                          disabled={deleteReviewMutation.isLoading}
+                          disabled={deleteReviewMutation.isPending}
                         >
-                          {deleteReviewMutation.isLoading ? (
+                          {deleteReviewMutation.isPending ? (
                             <Spinner size="tiny" />
                           ) : (
                             "Delete"
@@ -549,9 +526,9 @@ export default function Reviews({ postId }: { postId: string }) {
               <Button
                 appearance="primary"
                 onClick={handleSubmitReview}
-                disabled={rating === 0 || submitReviewMutation.isLoading}
+                disabled={rating === 0 || submitReviewMutation.isPending}
               >
-                {submitReviewMutation.isLoading ? (
+                {submitReviewMutation.isPending ? (
                   <Spinner size="tiny" />
                 ) : editingReview ? (
                   "Update Review"

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useQuery } from "react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Title1, Text, ProgressBar } from "@fluentui/react-components";
 import Navigation from "@/components/navigation";
 import { aqApi } from "@/lib/axios/api";
@@ -19,19 +19,19 @@ import { MostViewedAppsCard } from "./components/MostViewedAppsCard";
 import { StatisticsResponse } from "./types";
 
 export default function Statistics() {
-  const { data, isLoading, error } = useQuery<StatisticsResponse>(
-    ["statistics"],
-    async () => {
+  const { data, isPending, error } = useQuery<StatisticsResponse>({
+    queryKey: ["statistics"],
+    queryFn: async () => {
       const response =
         await aqApi.get<StatisticsResponse>("/api/v1/statistics");
       if (!response.success) {
         throw new Error(response.error);
       }
       return response.data;
-    }
-  );
+    },
+  });
 
-  if (isLoading) {
+  if (isPending) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Navigation className="mb-8" />

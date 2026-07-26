@@ -13,11 +13,6 @@ import {
   Tab,
   TabList,
   Text,
-  Toast,
-  ToastBody,
-  ToastIntent,
-  ToastTitle,
-  useToastController,
 } from "@fluentui/react-components";
 import { AddRegular, EditRegular, EyeRegular } from "@fluentui/react-icons";
 import { Form } from "@/components/ui/form";
@@ -26,14 +21,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { aqApi } from "@/lib/axios/api";
+import { uploadFileToR2 } from "@/lib/hooks/useFileUpload";
+import { useToast } from "@/lib/hooks/useToast";
 import { useUser } from "@clerk/nextjs";
 import FileUploader from "@/components/ui/upload-button";
-import { useQueryClient } from "react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import GlobalMarkdown from "@/components/markdown";
-import {
-  FileUploadRequest,
-  FileUploadResponse,
-} from "@/app/api/v1/upload/route";
 import axios from "axios";
 import { InputDate } from "@/components/ui/form/input-date";
 import { BlogPost } from "@/lib/types/prisma/prisma-types";
@@ -65,7 +58,7 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedTab, setSelectedTab] = useState<string>("edit");
   const { user } = useUser();
-  const { dispatchToast } = useToastController();
+  const { notify } = useToast();
   const queryClient = useQueryClient();
   const isAdmin = user?.publicMetadata?.role === "admin";
 
@@ -99,43 +92,6 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
     }
   }, [editPost, form]);
 
-  const notify = (
-    title: string,
-    subtitle?: string,
-    intent: ToastIntent = "success",
-  ) =>
-    dispatchToast(
-      <Toast>
-        <ToastTitle>{title}</ToastTitle>
-        {subtitle && <ToastBody>{subtitle}</ToastBody>}
-      </Toast>,
-      { intent },
-    );
-
-  const uploadFile = async (file: File): Promise<string> => {
-    const response = await aqApi.post<FileUploadResponse, FileUploadRequest>(
-      "/api/v1/upload",
-      {
-        filename: file.name,
-        contentType: file.type,
-      },
-    );
-
-    if (!response.success) {
-      throw new Error("Failed to get upload URL");
-    }
-
-    const { url, downloadUrl } = response.data;
-
-    await axios.put(url, file, {
-      headers: {
-        "Content-Type": file.type,
-      },
-    });
-
-    return downloadUrl;
-  };
-
   const handleClose = () => {
     setIsOpen(false);
     onOpenChange?.(false);
@@ -150,7 +106,7 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
 
       if (selectedFile) {
         try {
-          const imageUrl = await uploadFile(selectedFile);
+          const imageUrl = await uploadFileToR2(selectedFile);
           values.image_url = imageUrl;
         } catch (error) {
           notify("Failed to upload image", (error as Error).message, "error");
@@ -181,9 +137,9 @@ export const CreateBlogPost: React.FC<CreateBlogPostProps> = ({
 
         handleClose();
 
-        queryClient.invalidateQueries("blog-posts");
+        queryClient.invalidateQueries({ queryKey: ["blog-posts"] });
         if (editPost) {
-          queryClient.invalidateQueries(["blog-post", editPost.id]);
+          queryClient.invalidateQueries({ queryKey: ["blog-post", editPost.id] });
         }
       } else {
         notify(
