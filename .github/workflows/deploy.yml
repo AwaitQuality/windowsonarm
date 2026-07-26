@@ -46,7 +46,11 @@ jobs:
 
       # NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY comes from .env.production, which is
       # committed precisely so CI bakes the live key into the client bundle.
+      # Needs credentials: the OpenNext build populates the R2 incremental cache.
       - run: pnpm cf:build
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy
         uses: cloudflare/wrangler-action@v3
