@@ -21,17 +21,10 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       return ErrorResponse.json("Post not found", { status: 404 });
     }
 
-    // A pending submission is only visible to the person who submitted it and to
-    // admins. Everyone else gets a 404 so the id itself stays unconfirmed.
-    if (post.effective_status_id === PENDING_STATUS_ID) {
-      const { userId } = await auth();
-      const isSubmitter = !!userId && post.user_id === userId;
-
-      if (!isSubmitter && !(await isAdminRequest(request, "posts:read"))) {
-        return ErrorResponse.json("Post not found", { status: 404 });
-      }
-    }
-
+    // Pending submissions are returned like any other post. They are kept out of
+    // the default listing and the sitemap, but they are reachable through the
+    // "Under Review" filter, which is how the community finds the apps that
+    // asked to be tested.
     return DataResponse.json(post);
   } catch (error: unknown) {
     return handleRouteError(error);

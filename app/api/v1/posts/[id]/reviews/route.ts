@@ -40,15 +40,15 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
     const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
-    // Confirm the post is reviewable up front, otherwise a bad id surfaces as a
-    // raw foreign-key violation. Pending posts are not public, so nor are their
-    // reviews.
+    // Confirm the post exists up front, otherwise a bad id surfaces as a raw
+    // foreign-key violation. Pending posts are reviewable: community testing is
+    // exactly what they are waiting for.
     const post = await prisma.post.findUnique({
       where: { id: params.id },
       select: { effective_status_id: true },
     });
 
-    if (!post || post.effective_status_id === PENDING_STATUS_ID) {
+    if (!post) {
       return ErrorResponse.json("Post not found", { status: 404 });
     }
 

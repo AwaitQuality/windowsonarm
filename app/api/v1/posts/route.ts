@@ -50,10 +50,6 @@ export async function GET(request: NextRequest) {
       status: rawParam("status"),
     });
 
-    const includePending =
-      status === PENDING_STATUS_ID &&
-      (await isAdminRequest(request, "posts:read"));
-
     return DataResponse.json(
       await listPosts({
         cursor,
@@ -61,7 +57,6 @@ export async function GET(request: NextRequest) {
         search,
         status,
         userId: user.userId,
-        includePending,
       })
     );
   } catch (error: unknown) {

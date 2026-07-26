@@ -128,9 +128,8 @@ export const getAppById = cache(
       user: null,
     };
 
-    // Deliberately after the fetch: recording a view first let a stranger
-    // probing a pending id write a View row even though the request 404s.
-    if (logView && post.effective_status_id !== PENDING_STATUS_ID) {
+    // After the fetch so a view is only recorded for a post that exists.
+    if (logView) {
       await recordView(prisma, id);
     }
 

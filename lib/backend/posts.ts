@@ -19,7 +19,11 @@ export interface ListPostsOptions {
   status?: number;
   /** Whose upvote state to resolve. Null for anonymous callers. */
   userId?: string | null;
-  /** Only true for an admin explicitly asking for the review queue. */
+  /**
+   * Whether pending submissions may appear. They are excluded from the default
+   * listing but reachable through the "Under Review" filter, which is how the
+   * community finds the apps that asked to be tested.
+   */
   includePending?: boolean;
 }
 
@@ -49,10 +53,11 @@ export const listPosts = async ({
       AND: [
         category ? { category: { id: category } } : {},
         status !== undefined ? { effective_status_id: status } : {},
-        // Pending submissions are not public. The exclusion is always AND-ed in
-        // unless an admin asked for the queue, so `?status=-1` returns nothing
-        // rather than the review queue.
-        includePending ? {} : { effective_status_id: { not: PENDING_STATUS_ID } },
+        // Hidden from the unfiltered listing, but not secret: asking for them
+        // explicitly (?status=-1, the "Under Review" filter) returns them.
+        includePending || status === PENDING_STATUS_ID
+          ? {}
+          : { effective_status_id: { not: PENDING_STATUS_ID } },
         search
           ? {
               OR: [

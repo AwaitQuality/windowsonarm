@@ -63,16 +63,9 @@ export default async function AppPage(props: { params: Promise<{ id: string }> }
 
   if (!app) notFound();
 
-  // Same visibility rule as the API: a pending submission is only readable by
-  // its submitter or an admin. Without this the page rendered the review queue
-  // to anyone holding an id, even though /api/v1/posts/[id] 404s it.
-  if (app.effective_status_id === PENDING_STATUS_ID) {
-    const isOwner = Boolean(userId && app.user_id === userId);
-
-    if (!isOwner && !(userId && (await isAdminUser(userId)))) {
-      notFound();
-    }
-  }
+  // Pending submissions stay readable: most of them explicitly asked the
+  // community to test them, and the ballot on this page is how that happens.
+  // They are excluded from the default listing and from the sitemap, not hidden.
 
   // `app` and `info` cross the server/client boundary as-is: the RSC payload
   // serializes Date values natively, so the JSON round-trip this used to do was

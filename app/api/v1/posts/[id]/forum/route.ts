@@ -175,13 +175,6 @@ export async function POST(
       return ErrorResponse.json("Post not found", { status: 404 });
     }
 
-    // A pending post is not public yet: opening a thread would publish its
-    // title and description to Discord, which is the same leak the read paths
-    // close. 404 rather than 403, to match the rest of the pending handling.
-    if (post.effective_status_id === PENDING_STATUS_ID) {
-      return ErrorResponse.json("Post not found", { status: 404 });
-    }
-
     if (post.discord_forum_post_id) {
       return forumJson({
         messages: [],

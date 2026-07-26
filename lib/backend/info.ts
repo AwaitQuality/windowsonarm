@@ -20,9 +20,10 @@ export const getInfo = unstable_cache(
     // $queryRaw returns raw column names, so "idx" is aliased to the model's
     // `index`, and `text`/`icon` were previously absent and read as undefined.
     //
-    // The denominator matches the set being counted -- publicly visible posts --
-    // so the percentages sum to 100. Counting all posts included the pending
-    // ones, which are never shown.
+    // Every status is listed, "Under Review" (-1) included: 28% of posts are
+    // awaiting review and most of them explicitly asked the community to test
+    // them, so the filter has to offer a way to reach them. The denominator is
+    // therefore every post, and the percentages describe the whole catalogue.
     const status = await prisma.$queryRaw<StatusWithPercentage[]>`
         SELECT
             "Status"."id"    AS "id",
@@ -35,7 +36,6 @@ export const getInfo = unstable_cache(
                 ROUND(
                     CAST(COUNT("Post"."id") AS FLOAT) * 100 / NULLIF((
                         SELECT COUNT(*) FROM "Post"
-                        WHERE "Post"."effective_status" <> ${PENDING_STATUS_ID}
                     ), 0),
                     2
                 ),
@@ -43,7 +43,6 @@ export const getInfo = unstable_cache(
             ) AS "percentage"
         FROM "Status"
                  LEFT JOIN "Post" ON "Post"."effective_status" = "Status"."id"
-        WHERE "Status"."id" <> ${PENDING_STATUS_ID}
         GROUP BY "Status"."id", "Status"."idx", "Status"."name", "Status"."color", "Status"."text", "Status"."icon"
         ORDER BY "Status"."idx" ASC
     `;
