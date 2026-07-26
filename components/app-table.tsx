@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import {
   Button,
   makeStyles,
+  tokens,
   MessageBar,
   MessageBarActions,
   MessageBarBody,
@@ -39,6 +40,19 @@ import type { UpvoteRequest } from "@/app/api/v1/posts/upvote/route";
 const GoogleAdsense = dynamic(() => import("./google-adsense"), { ssr: false });
 
 const useStyles = makeStyles({
+  /**
+   * The title cell holds a real <a>, and its ::after is stretched across this
+   * row so the whole row is clickable without a second click handler: keyboard
+   * focus, middle-click and "open in new tab" all keep working, and there is
+   * only ever one navigation target per row.
+   */
+  appRow: {
+    position: "relative",
+    cursor: "pointer",
+    ":hover": {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+    },
+  },
   responsiveCell: {
     display: "table-cell",
 
@@ -364,11 +378,15 @@ const AppTable: React.FC<AppTableProps> = ({ query }) => {
           {/* Regular Rows */}
           {!isPending &&
             posts.map((item) => (
-              <TableRow key={item.id} className="hover:bg-neutral-50/5">
+              <TableRow key={item.id} className={styles.appRow}>
                 {columns.map((column) => (
                   <TableCell
                     key={`${item.id}-${column.columnKey}`}
                     className={styles.responsiveCell}
+                    // Inline, because Fluent's own cell class sets
+                    // `position: relative` and would otherwise trap the title
+                    // link's stretched ::after inside this one cell.
+                    style={{ position: "static" }}
                   >
                     {renderCell(item, column)}
                   </TableCell>
