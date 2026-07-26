@@ -6,6 +6,13 @@ main = ".open-next/worker.js"
 compatibility_date = "2025-03-25"
 compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
 
+# Serves the apex and www. Routes rather than a Workers custom domain, so the
+# cutover from Pages is reversible by deleting these two lines.
+routes = [
+  { pattern = "windowsonarm.org/*", zone_name = "windowsonarm.org" },
+  { pattern = "www.windowsonarm.org/*", zone_name = "windowsonarm.org" },
+]
+
 [assets]
 directory = ".open-next/assets"
 binding = "ASSETS"
