@@ -17,6 +17,12 @@ open a GitHub issue.
 | UI | Fluent UI v9, Tailwind CSS |
 | Data fetching | TanStack Query v5 |
 
+## Admin API
+
+Every admin action is also reachable over HTTP with a scoped API key. Admins
+create and revoke keys from their account menu → **API keys**. See
+[`docs/api.md`](docs/api.md) for endpoints, scopes and examples.
+
 ## Prerequisites
 
 - Node.js 20.19+ (Prisma 7 minimum)

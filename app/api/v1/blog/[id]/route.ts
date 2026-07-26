@@ -10,7 +10,7 @@ import { requireAdmin } from "@/lib/backend/auth";
 export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdmin(request, "blog:delete");
 
     if (!admin.ok) {
       return admin.response;
@@ -32,7 +32,7 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
 export async function PUT(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdmin(request, "blog:write");
 
     if (!admin.ok) {
       return admin.response;

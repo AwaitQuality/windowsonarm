@@ -144,6 +144,37 @@ model View {
   @@unique([post_id, ip_hash])
 }
 
+/// An admin-issued bearer credential for the public API. The token itself is
+/// never stored — only its SHA-256 digest — so a database leak cannot be
+/// replayed against the API.
+model ApiKey {
+  id      String @id @default(uuid())
+  /// Clerk user id of the admin who owns the key. Every authenticated request
+  /// re-checks that this user still holds the admin role, so demoting an admin
+  /// disables their keys without a separate revocation step.
+  user_id String
+  name    String
+  /// Public half of the token. Unique so a presented token resolves to exactly
+  /// one row with a single indexed lookup, before any digest comparison.
+  prefix  String @unique
+  /// SHA-256 of the full token, lower-case hex.
+  hash    String
+  /// JSON-encoded array of ApiScope values. SQLite has no array type, and the
+  /// set is small enough that querying inside it is never needed.
+  scopes  String
+
+  last_used_at DateTime?
+  expires_at   DateTime?
+  /// Set instead of deleting the row, so an audit of which key acted stays
+  /// possible after revocation.
+  revoked_at   DateTime?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+
+  @@index([user_id])
+  @@index([user_id, revoked_at])
+}
+
 model BlogPost {
   id          String   @id @default(uuid())
   title       String

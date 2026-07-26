@@ -9,6 +9,7 @@
  */
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { requestCarriesApiKey } from "@/lib/backend/api-key-token";
 
 /**
  * The mutating API surface. Protected at the edge for non-GET requests only —
@@ -22,12 +23,21 @@ const isProtectedApiRoute = createRouteMatcher([
   "/api/v1/blog",
   "/api/v1/blog/(.*)",
   "/api/v1/upload",
+  "/api/v1/admin/(.*)",
 ]);
 
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
 
 export default clerkMiddleware(async (auth, request) => {
   if (SAFE_METHODS.has(request.method) || !isProtectedApiRoute(request)) {
+    return;
+  }
+
+  // API-key callers have no Clerk session by definition, so the session check
+  // below would reject every one of them. The key itself is verified in the
+  // route via requireAdmin() — including revocation, expiry and scope — which
+  // needs D1 and Clerk lookups that do not belong in edge middleware.
+  if (requestCarriesApiKey(request)) {
     return;
   }
 

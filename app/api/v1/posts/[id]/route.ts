@@ -9,7 +9,7 @@ import { recomputeEffectiveStatus } from "@/lib/backend/voting";
 import { PENDING_STATUS_ID, updatePostSchema } from "@/lib/schemas/post";
 import { sendWebhook } from "@/lib/backend/discord";
 import { handleRouteError } from "@/lib/backend/errors";
-import { isAdminUser, requireAdmin } from "@/lib/backend/auth";
+import { isAdminRequest, requireAdmin } from "@/lib/backend/auth";
 
 
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       const { userId } = await auth();
       const isSubmitter = !!userId && post.user_id === userId;
 
-      if (!isSubmitter && !(await isAdminUser(userId))) {
+      if (!isSubmitter && !(await isAdminRequest(request, "posts:read"))) {
         return ErrorResponse.json("Post not found", { status: 404 });
       }
     }
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
 export async function PUT(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdmin(request, "posts:write");
 
     if (!admin.ok) {
       return admin.response;
@@ -136,7 +136,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
 export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdmin(request, "posts:delete");
 
     if (!admin.ok) {
       return admin.response;

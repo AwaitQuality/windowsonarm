@@ -44,6 +44,51 @@ export const updatePostSchema = z.object({
 
 export type UpdatePostInput = z.infer<typeof updatePostSchema>;
 
+/**
+ * Admin-authored creation, for POST /api/v1/admin/posts.
+ *
+ * Differs from `createPostSchema` in three ways, all of them because the author
+ * is trusted: the status is set directly instead of being forced to PENDING,
+ * `status_hint` arrives as a number rather than a form string, and the post can
+ * be attributed to another user (for imports and backfills).
+ */
+export const adminCreatePostSchema = z.object({
+  title: z.string().min(1).max(255),
+  company: z.string().min(1).max(255),
+  description: z.string().min(1),
+  tags: z.array(z.string()).max(15).optional(),
+  app_url: optionalUrl,
+  community_url: optionalUrl,
+  banner_url: optionalUrl,
+  icon_url: optionalText,
+  status_id: z.coerce.number().int(),
+  status_hint: z.coerce.number().int().nullable().optional(),
+  categoryId: z.string().min(1),
+  /** Attribution override. Defaults to the acting admin. */
+  user_id: z.string().min(1).nullable().optional(),
+});
+
+export type AdminCreatePostInput = z.infer<typeof adminCreatePostSchema>;
+
+/**
+ * Partial update, for PATCH /api/v1/admin/posts/{id}. The existing PUT is a
+ * full replace, which forces a script that only wants to move a status to
+ * re-send the entire post — and to race anyone editing it in the meantime.
+ *
+ * `user_id` is deliberately not re-exposed here: re-attributing an existing post
+ * would silently move its submitter's implicit status vote to someone else.
+ */
+export const adminUpdatePostSchema = adminCreatePostSchema
+  .omit({ user_id: true })
+  .partial()
+  .extend({ update_description: optionalText.nullable().optional() })
+  .refine(
+    (value) => Object.keys(value).length > 0,
+    "Provide at least one field to update"
+  );
+
+export type AdminUpdatePostInput = z.infer<typeof adminUpdatePostSchema>;
+
 export const statusVoteSchema = z.object({
   status_id: z.number().int(),
 });

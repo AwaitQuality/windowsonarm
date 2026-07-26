@@ -12,12 +12,8 @@ import {
   MenuPopover,
 } from "@fluentui/react-components";
 import { Coffee, Github, Menu as MenuIcon, Home } from "lucide-react";
-import {
-  ClerkLoading,
-  GoogleOneTap,
-  UserButton,
-  useAuth,
-} from "@clerk/nextjs";
+import { ClerkLoading, GoogleOneTap, useAuth } from "@clerk/nextjs";
+import AdminUserButton from "@/components/settings/admin-user-button";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SiDiscord } from "@icons-pack/react-simple-icons";
@@ -158,7 +154,7 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
           <ClerkLoading>
             <Button disabled>Loading...</Button>
           </ClerkLoading>
-          {isLoaded && isSignedIn && <UserButton />}
+          {isLoaded && isSignedIn && <AdminUserButton />}
           {isLoaded && !isSignedIn && (
             <Link href="/auth/signin" className="hidden sm:inline-block">
               <Button>Sign in</Button>
