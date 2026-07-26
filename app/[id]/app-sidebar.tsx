@@ -138,7 +138,7 @@ export default function AppSidebar({ app, info }: AppSidebarProps) {
         </div>
       </Card>
 
-      {app.status_id === -1 && <StatusVote postId={app.id} info={info} />}
+      <StatusVote postId={app.id} info={info} />
 
       <Card
         className="rounded-lg shadow-md p-6"

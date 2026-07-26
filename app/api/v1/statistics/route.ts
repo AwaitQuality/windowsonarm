@@ -108,7 +108,8 @@ export async function GET() {
         color: true,
         _count: {
           select: {
-            posts: true,
+            // Count by the status shown publicly, which the community can decide.
+            effective_posts: true,
           },
         },
       },
@@ -120,8 +121,8 @@ export async function GET() {
     const appsPerStatus = statusCounts.map(status => ({
       status: status.name,
       color: status.color,
-      count: status._count.posts,
-      percentage: totalApps ? Math.round((status._count.posts * 100) / totalApps * 10) / 10 : 0,
+      count: status._count.effective_posts,
+      percentage: totalApps ? Math.round((status._count.effective_posts * 100) / totalApps * 10) / 10 : 0,
     }));
 
     // Get apps per category with percentages

@@ -9,6 +9,7 @@ import {
 } from "@fluentui/react-icons";
 import dayjs from "dayjs";
 import { makeStyles, tokens } from "@fluentui/react-components";
+import CommunityVoteIndicator from "@/components/voting/community-vote-indicator";
 
 const useStyles = makeStyles({
   heroTitle: {
@@ -29,6 +30,7 @@ const useStyles = makeStyles({
 
 export default function AppHeader({ app }: { app: FullPost }) {
   const classes = useStyles();
+  const displayStatus = app.effective_status ?? app.status;
 
   return (
     <div className="bg-gradient-to-r from-blue-800 to-blue-950 text-white py-16 mb-12">
@@ -47,10 +49,11 @@ export default function AppHeader({ app }: { app: FullPost }) {
         </div>
         <h2 className={`${classes.heroSubtitle} mb-6`}>
           <span
-            className={`inline-block px-3 py-1 rounded-full`}
-            style={{ backgroundColor: app.status?.color }}
+            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full`}
+            style={{ backgroundColor: displayStatus?.color }}
           >
-            {app.status?.text}
+            {displayStatus?.text}
+            {app.community_voted && <CommunityVoteIndicator size={16} />}
           </span>
         </h2>
         <div className="flex items-center space-x-4 text-sm">

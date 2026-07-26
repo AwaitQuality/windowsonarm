@@ -284,7 +284,12 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
       case "title":
         return <TitleCell item={item} onUpvoteClick={onUpvoteClick} />;
       case "status":
-        return <StatusCell status={item.status} />;
+        return (
+          <StatusCell
+            status={item.effective_status ?? item.status}
+            communityVoted={item.community_voted}
+          />
+        );
       case "company":
         return <TableCellLayout>{item.company}</TableCellLayout>;
       case "author":

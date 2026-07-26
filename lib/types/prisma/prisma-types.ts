@@ -2,6 +2,9 @@ import { Category, Post, Status, Tag, Upvote } from "@prisma/client";
 import { User } from "@clerk/nextjs/server";
 
 export type FullPost = Post & { status: Status | null } & {
+  /** Community-decided status when it overrides `status`, otherwise mirrors it. */
+  effective_status?: Status | null;
+} & {
   user: User | null;
 } & {
   upvotes?: Upvote[];

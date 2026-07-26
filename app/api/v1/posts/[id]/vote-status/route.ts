@@ -4,6 +4,11 @@ import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import getPrisma from "@/lib/db/prisma";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import {
+  recomputeEffectiveStatus,
+  submitterHasImplicitVote,
+  tallyVotes,
+} from "@/lib/backend/voting";
 
 export const runtime = "edge";
 
@@ -11,6 +16,43 @@ export const runtime = "edge";
 interface VoteStatusRequest {
   status_id: number;
 }
+
+export interface VoteStatusResponse {
+  votes: { status_id: number; count: number }[];
+  userVote: number | null;
+  /** True when the submitter's status_hint is still standing in as their vote. */
+  submitterImplicitVote: boolean;
+  effective_status_id: number | null;
+  community_voted: boolean;
+}
+
+const buildSummary = async (
+  prisma: ReturnType<typeof getPrisma>,
+  postId: string,
+  userId: string | null
+): Promise<VoteStatusResponse | null> => {
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      user_id: true,
+      status_hint: true,
+      effective_status_id: true,
+      community_voted: true,
+      status_votes: { select: { user_id: true, status_id: true } },
+    },
+  });
+
+  if (!post) return null;
+
+  return {
+    votes: tallyVotes(post.status_votes, post.user_id, post.status_hint),
+    userVote:
+      post.status_votes.find((v) => v.user_id === userId)?.status_id ?? null,
+    submitterImplicitVote: submitterHasImplicitVote(post, post.status_votes),
+    effective_status_id: post.effective_status_id,
+    community_voted: post.community_voted,
+  };
+};
 
 export async function POST(
   request: NextRequest,
@@ -22,25 +64,37 @@ export async function POST(
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
 
-    const body = await request.json() as VoteStatusRequest;
+    const body = (await request.json()) as VoteStatusRequest;
     const { status_id } = body;
 
     // Validate status_id
-    if (typeof status_id !== 'number') {
+    if (typeof status_id !== "number") {
       return ErrorResponse.json("Invalid status_id", { status: 400 });
     }
 
     const { env } = getRequestContext();
     const prisma = getPrisma(env.DB);
 
-    // Check if post exists and has status -1
     const post = await prisma.post.findUnique({
       where: { id: params.id },
-      select: { status_id: true },
+      select: { user_id: true, status_hint: true },
     });
 
-    if (!post || post.status_id !== -1) {
-      return ErrorResponse.json("Invalid post or post status", { status: 400 });
+    if (!post) {
+      return ErrorResponse.json("Post not found", { status: 404 });
+    }
+
+    // The submitter's status_hint already counts as their vote.
+    if (post.user_id === userId && post.status_hint != null) {
+      return ErrorResponse.json(
+        "Your initial status hint already counts as your vote",
+        { status: 403 }
+      );
+    }
+
+    const status = await prisma.status.findUnique({ where: { id: status_id } });
+    if (!status) {
+      return ErrorResponse.json("Unknown status", { status: 400 });
     }
 
     // Upsert the vote
@@ -61,7 +115,9 @@ export async function POST(
       },
     });
 
-    return DataResponse.json({ success: true });
+    await recomputeEffectiveStatus(prisma, params.id);
+
+    return DataResponse.json(await buildSummary(prisma, params.id, userId));
   } catch (error: any) {
     return ErrorResponse.json(error.message);
   }
@@ -76,35 +132,45 @@ export async function GET(
     const { env } = getRequestContext();
     const prisma = getPrisma(env.DB);
 
-    // Get vote counts
-    const votes = await prisma.statusVote.groupBy({
-      by: ['status_id'],
-      where: { post_id: params.id },
-      _count: true,
-    });
+    const summary = await buildSummary(prisma, params.id, userId);
+    if (!summary) {
+      return ErrorResponse.json("Post not found", { status: 404 });
+    }
 
-    // Get user's vote if logged in
-    let userVote = null;
-    if (userId) {
-      const vote = await prisma.statusVote.findUnique({
+    return DataResponse.json(summary);
+  } catch (error: any) {
+    return ErrorResponse.json(error.message);
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { userId } = auth();
+    if (!userId) {
+      return ErrorResponse.json("Unauthorized", { status: 401 });
+    }
+
+    const { env } = getRequestContext();
+    const prisma = getPrisma(env.DB);
+
+    await prisma.statusVote
+      .delete({
         where: {
           post_id_user_id: {
             post_id: params.id,
             user_id: userId,
           },
         },
-      });
-      userVote = vote?.status_id;
-    }
+      })
+      .catch(() => null);
 
-    return DataResponse.json({
-      votes: votes.map(v => ({
-        status_id: v.status_id,
-        count: v._count,
-      })),
-      userVote,
-    });
+    await recomputeEffectiveStatus(prisma, params.id);
+
+    return DataResponse.json(await buildSummary(prisma, params.id, userId));
   } catch (error: any) {
     return ErrorResponse.json(error.message);
   }
-} 
+}

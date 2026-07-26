@@ -20,7 +20,7 @@ export const getInfo = unstable_cache(
             Status."idx",
             ROUND(CAST(COUNT(*) AS FLOAT) * 100 / (SELECT COUNT(*) FROM Post), 2) AS percentage
         FROM Post
-                 INNER JOIN Status ON Post.status = Status.id
+                 INNER JOIN Status ON Post."effective_status" = Status.id
         GROUP BY Status.id, Status."idx", Status.name, Status.color
         ORDER BY Status."idx" ASC
     `;

@@ -18,26 +18,14 @@ import Link from "next/link";
 import { aqApi } from "@/lib/axios/api";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import { useMutation, useQuery, useQueryClient } from "react-query";
+import type { VoteStatusResponse } from "@/app/api/v1/posts/[id]/vote-status/route";
 
 interface StatusVoteProps {
   postId: string;
   info: InfoResponse;
 }
 
-interface StatusVoteData {
-  status_id: number;
-  count: number;
-}
-
-interface VoteResponse {
-  votes: StatusVoteData[];
-  userVote: number | null;
-}
-
-interface VoteApiResponse {
-  success: boolean;
-  data: VoteResponse;
-}
+type VoteResponse = VoteStatusResponse;
 
 export default function StatusVote({ postId, info }: StatusVoteProps) {
   const { isSignedIn } = useUser();

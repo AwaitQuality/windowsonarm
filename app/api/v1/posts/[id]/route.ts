@@ -6,6 +6,7 @@ import DataResponse from "@/lib/backend/response/DataResponse";
 import { z } from "zod";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { getAppById } from "@/lib/api";
+import { recomputeEffectiveStatus } from "@/lib/backend/voting";
 import axios from "axios";
 
 export const runtime = "edge";
@@ -98,6 +99,11 @@ export async function PUT(
         tags: true,
       },
     });
+
+    // An admin status change can invalidate a community-decided status.
+    if (currentPost && currentPost.status_id !== validatedData.status_id) {
+      await recomputeEffectiveStatus(prisma, params.id);
+    }
 
     // If status has changed, send Discord webhook
     if (currentPost && currentPost.status_id !== validatedData.status_id) {

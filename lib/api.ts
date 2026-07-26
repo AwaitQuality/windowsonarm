@@ -64,6 +64,7 @@ export const getAppById = cache(
       where: { id },
       include: {
         status: true,
+        effective_status: true,
         tags: true,
         upvotes: userId
           ? {

@@ -16,6 +16,8 @@ model Post {
   user_id               String?
   status_id             Int          @map("status")
   status_hint           Int?
+  effective_status_id   Int?         @map("effective_status")
+  community_voted       Boolean      @default(false)
   description           String
   tags                  Tag[]
   app_url               String?
@@ -27,7 +29,8 @@ model Post {
   updated_at            DateTime     @default(now())
   update_description    String?
   category              Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  status                Status       @relation(fields: [status_id], references: [id])
+  status                Status       @relation("PostStatus", fields: [status_id], references: [id])
+  effective_status      Status?      @relation("PostEffectiveStatus", fields: [effective_status_id], references: [id])
   upvotes               Upvote[]
   reviews               Review[]
   status_votes          StatusVote[]
@@ -37,6 +40,7 @@ model Post {
 
   @@index([categoryId])
   @@index([status_id])
+  @@index([effective_status_id])
   @@index([user_id])
   @@index([created_at])
   @@index([upvotes_count])
@@ -63,14 +67,15 @@ model Upvote {
 }
 
 model Status {
-  id         Int          @id @default(autoincrement())
-  index      Int          @default(0) @map("idx")
-  name       String       @unique
-  color      String
-  text       String
-  icon       String
-  posts      Post[]
-  StatusVote StatusVote[]
+  id              Int          @id @default(autoincrement())
+  index           Int          @default(0) @map("idx")
+  name            String       @unique
+  color           String
+  text            String
+  icon            String
+  posts           Post[]       @relation("PostStatus")
+  effective_posts Post[]       @relation("PostEffectiveStatus")
+  StatusVote      StatusVote[]
 
   @@index([name])
 }

@@ -8,6 +8,7 @@ import { getRequestContext } from "@cloudflare/next-on-pages";
 import { auth, clerkClient, getAuth } from "@clerk/nextjs/server";
 import axios from "axios";
 import { z } from "zod";
+import { PENDING_STATUS_ID } from "@/lib/backend/voting";
 
 export const runtime = "edge";
 
@@ -68,7 +69,9 @@ export async function GET(request: NextRequest) {
       where: {
         AND: [
           category ? { category: { id: category } } : {},
-          status ? { status_id: parseInt(status) } : { status_id: { not: -1 } },
+          status
+            ? { effective_status_id: parseInt(status) }
+            : { effective_status_id: { not: PENDING_STATUS_ID } },
           search
             ? {
                 OR: [
@@ -82,6 +85,7 @@ export async function GET(request: NextRequest) {
       },
       include: {
         status: true,
+        effective_status: true,
         upvotes: user.userId
           ? {
               where: {
@@ -209,7 +213,9 @@ export async function POST(request: NextRequest) {
         status_hint: validatedData.status_hint
           ? parseInt(validatedData.status_hint)
           : null,
-        status_id: -1,
+        status_id: PENDING_STATUS_ID,
+        // New posts start pending; the community can only move this once it votes.
+        effective_status_id: PENDING_STATUS_ID,
         user_id: userId,
         tags: {
           connectOrCreate:
