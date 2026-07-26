@@ -129,6 +129,25 @@ pnpm cf:build   # build the Worker artifact into .open-next/
 pnpm deploy     # build and deploy to Cloudflare Workers
 ```
 
+`NEXT_PUBLIC_*` variables are inlined into the client bundle at build time, so a
+Worker secret cannot supply them. `.env.production` therefore holds the
+production Clerk **publishable** key — it is public by design and already
+visible in the shipped bundle. Without that file the build picks up the
+`pk_test_` key from `.env`/`.dev.vars` and every real user is signed out.
+
+Everything genuinely secret is a Worker secret instead:
+
+```bash
+npx wrangler secret put CLERK_SECRET_KEY
+npx wrangler secret put R2_ACCESS_KEY_ID
+npx wrangler secret put R2_SECRET_ACCESS_KEY
+npx wrangler secret put R2_PUBLIC_URL
+npx wrangler secret put DISCORD_BOT_TOKEN
+npx wrangler secret put DISCORD_WEBHOOK_URL
+npx wrangler secret put DISCORD_FORUM_CHANNEL_ID
+npx wrangler secret put VIEW_IP_HASH_SECRET
+```
+
 `middleware.ts` is intentionally **not** renamed to Next 16's `proxy.ts`: a proxy
 always runs on the Node.js runtime and OpenNext rejects Node.js middleware. See
 the comment at the top of that file.
