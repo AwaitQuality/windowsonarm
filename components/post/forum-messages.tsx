@@ -139,7 +139,7 @@ export default function ForumMessages({ postId }: ForumMessagesProps) {
               <Text>Sign in to start one.</Text>
             )}
             {startDiscussion.isError && (
-              <Text className="block mt-2 text-red-500 wrap-break-word">
+              <Text className="block mt-2 text-red-500 break-words">
                 {startDiscussion.error.message}
               </Text>
             )}

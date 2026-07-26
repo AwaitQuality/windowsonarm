@@ -47,6 +47,16 @@ DISCORD_BOT_TOKEN=...
 DISCORD_GUILD_ID=...
 DISCORD_FORUM_CHANNEL_ID=...
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+
+# Keys the visitor-IP hash used to dedupe post views. Without it, view
+# tracking is skipped rather than storing an unkeyed hash.
+VIEW_IP_HASH_SECRET=<random 32+ bytes, e.g. openssl rand -hex 32>
+```
+
+For production, set it as a Worker secret rather than a var:
+
+```bash
+wrangler secret put VIEW_IP_HASH_SECRET
 ```
 
 Non-secret bindings (the D1 database, compatibility flags, static assets) live in

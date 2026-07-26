@@ -27,7 +27,9 @@ import {
 import dayjs from "dayjs";
 import GlobalMarkdown from "@/components/markdown";
 import { BlogPost } from "@/lib/types/prisma/prisma-types";
-import Giscus from "@giscus/react";
+// Below-the-fold comment widget that injects its own iframe: no reason to ship
+// it in the page bundle.
+const Giscus = dynamic(() => import("@giscus/react"), { ssr: false });
 import Navigation from "@/components/navigation";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";

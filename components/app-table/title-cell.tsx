@@ -43,6 +43,10 @@ const TitleCell: React.FC<TitleCellProps> = ({ item, onUpvoteClick }) => {
           {item.icon_url ? (
             <img
               src={item.icon_url}
+              width={32}
+              height={32}
+              loading="lazy"
+              decoding="async"
               style={{ width: "32px", height: "32px", display: "inline" }}
               alt={item.title}
             />
@@ -54,7 +58,7 @@ const TitleCell: React.FC<TitleCellProps> = ({ item, onUpvoteClick }) => {
     >
       <Link
         href={`/${item.id}`}
-        className="wrap-break-word hover:underline focus-visible:underline"
+        className="break-words hover:underline focus-visible:underline"
       >
         {item.title}
       </Link>

@@ -2,6 +2,10 @@ import React from "react";
 import { Metadata } from "next";
 import { getAppById } from "@/lib/api";
 import { getInfo } from "@/lib/backend/info";
+import { notFound } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import { isAdminUser } from "@/lib/backend/auth";
+import { PENDING_STATUS_ID } from "@/lib/schemas/post";
 import { Container } from "@/components/ui/container";
 import AppHeader from "./app-header";
 import AppContent from "./app-content";
@@ -15,10 +19,22 @@ export async function generateMetadata(
   const params = await props.params;
   const app = await getAppById(params.id, false);
 
-  if (!app) {
+  // Pending submissions must not leak their title through metadata either.
+  if (app && app.effective_status_id === PENDING_STATUS_ID) {
     return {
       title: "App not found - Windows on ARM",
       description: "App not found",
+      robots: { index: false, follow: false },
+    };
+  }
+
+  if (!app) {
+    // notFound() cannot change the status once streaming has started, so this
+    // renders as a soft 404. Keep it out of the index explicitly.
+    return {
+      title: "App not found - Windows on ARM",
+      description: "App not found",
+      robots: { index: false, follow: false },
     };
   }
 
@@ -36,7 +52,19 @@ export default async function AppPage(props: { params: Promise<{ id: string }> }
     getInfo(),
   ]);
 
-  if (!app) return <div>App not found: {params.id}</div>;
+  if (!app) notFound();
+
+  // Same visibility rule as the API: a pending submission is only readable by
+  // its submitter or an admin. Without this the page rendered the review queue
+  // to anyone holding an id, even though /api/v1/posts/[id] 404s it.
+  if (app.effective_status_id === PENDING_STATUS_ID) {
+    const { userId } = await auth();
+    const isOwner = Boolean(userId && app.user_id === userId);
+
+    if (!isOwner && !(userId && (await isAdminUser(userId)))) {
+      notFound();
+    }
+  }
 
   // `app` and `info` cross the server/client boundary as-is: the RSC payload
   // serializes Date values natively, so the JSON round-trip this used to do was

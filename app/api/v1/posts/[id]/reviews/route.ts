@@ -51,31 +51,22 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
       return ErrorResponse.json("Post not found", { status: 404 });
     }
 
-    // Check if user already reviewed this post
-    const existingReview = await prisma.review.findFirst({
+    // One review per user per post is enforced by @@unique([post_id, user_id]),
+    // so an upsert replaces the previous read-then-write, which raced into
+    // duplicate reviews and skewed the average rating.
+    const review = await prisma.review.upsert({
       where: {
-        post_id: params.id,
-        user_id: userId,
-      },
-    });
-
-    if (existingReview) {
-      // Update existing review
-      const updatedReview = await prisma.review.update({
-        where: { id: existingReview.id },
-        data: {
-          rating: validatedData.rating,
-          comment: validatedData.comment,
-          updated_at: new Date(),
+        post_id_user_id: {
+          post_id: params.id,
+          user_id: userId,
         },
-      });
-
-      return DataResponse.json(updatedReview);
-    }
-
-    // Create new review
-    const review = await prisma.review.create({
-      data: {
+      },
+      update: {
+        rating: validatedData.rating,
+        comment: validatedData.comment,
+        updated_at: new Date(),
+      },
+      create: {
         post_id: params.id,
         user_id: userId,
         rating: validatedData.rating,

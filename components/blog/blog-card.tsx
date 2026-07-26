@@ -11,6 +11,7 @@ import {
 import { CalendarRegular, PersonRegular } from "@fluentui/react-icons";
 import dayjs from "dayjs";
 import Link from "next/link";
+import type { BlogPostWithAuthor } from "@/lib/types/prisma/prisma-types";
 
 const EXCERPT_LENGTH = 220;
 
@@ -47,18 +48,7 @@ const truncate = (text: string, limit: number): string => {
 };
 
 interface BlogCardProps {
-  post: {
-    id: string;
-    title: string;
-    content: string;
-    description?: string;
-    image_url?: string;
-    created_at: Date;
-    author: {
-      username?: string;
-      imageUrl?: string;
-    };
-  };
+  post: BlogPostWithAuthor;
 }
 
 export const BlogCard: React.FC<BlogCardProps> = ({ post }) => {

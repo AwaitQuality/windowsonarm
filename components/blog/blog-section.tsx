@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Text, Button } from "@fluentui/react-components";
 import dynamic from "next/dynamic";
 import { BlogCard } from "@/components/blog/blog-card";
+import type { BlogPostWithAuthor } from "@/lib/types/prisma/prisma-types";
 import { ChevronDownRegular, ChevronUpRegular } from "@fluentui/react-icons";
 import { BlogCardSkeleton } from "./blog-card-skeleton";
 
@@ -15,23 +16,8 @@ const CreateBlogPost = dynamic(
   { ssr: false },
 );
 
-interface BlogPost {
-  id: string;
-  title: string;
-  content: string;
-  image_url?: string | null;
-  published: boolean;
-  author_id: string;
-  created_at: Date;
-  updated_at: Date;
-  author: {
-    username?: string;
-    imageUrl?: string;
-  };
-}
-
 interface BlogSectionProps {
-  posts: BlogPost[];
+  posts: BlogPostWithAuthor[];
   isAdmin: boolean;
   isLoading: boolean;
 }
@@ -133,13 +119,7 @@ export const BlogSection: React.FC<BlogSectionProps> = ({
         </div>
         <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {visiblePosts.map((post) => (
-            <BlogCard
-              key={post.id}
-              post={{
-                ...post,
-                image_url: post.image_url || undefined,
-              }}
-            />
+            <BlogCard key={post.id} post={post} />
           ))}
         </div>
 

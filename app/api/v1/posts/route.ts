@@ -102,12 +102,6 @@ export async function GET(request: NextRequest) {
             }
           : false,
         category: true,
-        _count: {
-          select: {
-            upvotes: true,
-            views: true,
-          },
-        },
       },
       skip: cursor ? 1 : 0,
       orderBy: [
@@ -128,9 +122,12 @@ export async function GET(request: NextRequest) {
       tags: [],
       userUpvoted: post.upvotes?.length > 0,
       user: null,
+      // Read from the same denormalised counters the query orders by: mixing
+      // ordering by upvotes_count with a live _count let a post rank above
+      // another while displaying a lower number.
       _count: {
-        upvotes: post._count.upvotes,
-        views: post._count.views,
+        upvotes: post.upvotes_count,
+        views: post.views_count,
       },
     }));
 

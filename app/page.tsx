@@ -22,33 +22,15 @@ import Navigation from "@/components/navigation";
 import AppTable from "@/components/app-table";
 import InfoSection from "@/components/info-section";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
-import type { PostsResponse } from "@/app/api/v1/posts/route";
+import type { BlogPostWithAuthor } from "@/lib/types/prisma/prisma-types";
 import ContributeButton from "@/components/contribute-button";
 import { DismissRegular } from "@fluentui/react-icons";
 import { usePersistedState } from "@/lib/hooks/use-persisted-state";
 import { useRouter } from "next/navigation";
 import { SiDiscord } from "@icons-pack/react-simple-icons";
 import { useQueryStates, parseAsString } from "nuqs";
-import { BlogCard } from "@/components/blog/blog-card";
-import { CreateBlogPost } from "@/components/blog/create-blog-post";
 import { useUser } from "@clerk/nextjs";
 import { BlogSection } from "@/components/blog/blog-section";
-
-// Add interface for BlogPost
-interface BlogPost {
-  id: string;
-  title: string;
-  content: string;
-  image_url?: string | null;
-  published: boolean;
-  author_id: string;
-  created_at: Date;
-  updated_at: Date;
-  author: {
-    username?: string;
-    imageUrl?: string;
-  };
-}
 
 export default function Home() {
   const [{ category, status, search }, setQueryStates] = useQueryStates({
@@ -75,10 +57,10 @@ export default function Home() {
     search: searchBox,
   });
 
-  const { data: blogPosts = [], isPending: blogLoading } = useQuery<BlogPost[]>({
+  const { data: blogPosts = [], isPending: blogLoading } = useQuery<BlogPostWithAuthor[]>({
     queryKey: ["blog-posts"],
     queryFn: async () => {
-      const response = await aqApi.get<BlogPost[]>("/api/v1/blog");
+      const response = await aqApi.get<BlogPostWithAuthor[]>("/api/v1/blog");
       if (!response.success) {
         throw new Error(response.error);
       }

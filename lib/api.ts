@@ -3,6 +3,7 @@ import { FullPost } from "@/lib/types/prisma/prisma-types";
 import getPrisma from "@/lib/db/prisma";
 import { lookupClerkUsersByIds } from "@/lib/backend/clerk";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { PENDING_STATUS_ID } from "@/lib/schemas/post";
 import { headers } from "next/headers";
 
 import { cache } from "react";
@@ -91,10 +92,6 @@ export const getAppById = cache(
   const prisma = getPrisma(env.DB);
 
   try {
-    if (logView) {
-      await recordView(prisma, id);
-    }
-
     const post = await prisma.post.findUnique({
       where: { id },
       include: {
@@ -127,6 +124,12 @@ export const getAppById = cache(
       userUpvoted: (post.upvotes?.length ?? 0) > 0,
       user: null,
     };
+
+    // Deliberately after the fetch: recording a view first let a stranger
+    // probing a pending id write a View row even though the request 404s.
+    if (logView && post.effective_status_id !== PENDING_STATUS_ID) {
+      await recordView(prisma, id);
+    }
 
     if (post.user_id) {
       // Plain summary, not Clerk's User class: this object crosses the RSC
