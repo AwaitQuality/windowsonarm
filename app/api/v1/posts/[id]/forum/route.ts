@@ -4,6 +4,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import { auth } from "@clerk/nextjs/server";
 import { PENDING_STATUS_ID } from "@/lib/schemas/post";
+import { unstable_cache } from "next/cache";
 import {
   avatarUrl,
   createForumThread,
@@ -30,24 +31,30 @@ export interface ForumResponse {
 const forumJson = (body: ForumResponse) => {
   const nextResponse = NextResponse.json<ForumResponse>(body);
 
+  // Matches the 60s server-side cache below rather than forbidding all caching:
+  // the previous no-store made every app page view a fresh Discord round-trip.
   nextResponse.headers.set(
     "Cache-Control",
-    "no-store, no-cache, must-revalidate, proxy-revalidate"
+    "public, s-maxage=60, stale-while-revalidate=30",
   );
-  nextResponse.headers.set("Pragma", "no-cache");
-  nextResponse.headers.set("Expires", "0");
-  nextResponse.headers.set("Surrogate-Control", "no-store");
 
   return nextResponse;
 };
 
-export async function GET(
-  request: NextRequest,
-  props: { params: Promise<{ id: string }> }
-) {
-  const params = await props.params;
-  try {
-    const appId = params.id;
+/**
+ * Reads the thread for a post: one D1 lookup plus two or three Discord calls.
+ *
+ * Cached for a minute, keyed by post id. Discussions do not move faster than
+ * that, and previously every visitor to an app page paid the full round-trip —
+ * including the archived-thread wake-up, which sleeps for a second.
+ */
+const getForumThread = unstable_cache(
+  async (
+    appId: string,
+  ): Promise<
+    | { ok: true; body: ForumResponse }
+    | { ok: false; error: string; status: number }
+  > => {
     const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
     const discordToken = env.DISCORD_BOT_TOKEN;
@@ -59,7 +66,7 @@ export async function GET(
     });
 
     if (!post) {
-      return ErrorResponse.json("Post not found", { status: 404 });
+      return { ok: false, error: "Post not found", status: 404 };
     }
 
     const forumPostId = post.discord_forum_post_id;
@@ -68,16 +75,17 @@ export async function GET(
     // write to the post. Threads are opened when the post is created, so a
     // missing id just means there is nothing to discuss yet.
     if (!forumPostId) {
-      return forumJson({ messages: [], discordUrl: null });
+      return { ok: true, body: { messages: [], discordUrl: null } };
     }
 
     const thread = await getThread(discordToken, forumPostId);
 
     if (!isThread(thread)) {
-      return ErrorResponse.json(
-        "The linked Discord channel is not a thread",
-        { status: 502 }
-      );
+      return {
+        ok: false,
+        error: "The linked Discord channel is not a thread",
+        status: 502,
+      };
     }
 
     if (thread.thread_metadata?.archived) {
@@ -88,20 +96,39 @@ export async function GET(
 
     const messages = await getThreadMessages(discordToken, forumPostId);
 
-    const formattedMessages: ForumMessage[] = messages.map((message) => ({
-      id: message.id,
-      content: message.content,
-      author: {
-        username: message.author.username,
-        avatar_url: avatarUrl(message.author),
+    return {
+      ok: true,
+      body: {
+        messages: messages.map((message) => ({
+          id: message.id,
+          content: message.content,
+          author: {
+            username: message.author.username,
+            avatar_url: avatarUrl(message.author),
+          },
+          timestamp: new Date(message.timestamp).getTime(),
+        })),
+        discordUrl: `https://discord.com/channels/${guildId}/${forumPostId}`,
       },
-      timestamp: new Date(message.timestamp).getTime(),
-    }));
+    };
+  },
+  ["forum-thread"],
+  { revalidate: 60 },
+);
 
-    return forumJson({
-      messages: formattedMessages,
-      discordUrl: `https://discord.com/channels/${guildId}/${forumPostId}`,
-    });
+export async function GET(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> },
+) {
+  const params = await props.params;
+  try {
+    const result = await getForumThread(params.id);
+
+    if (!result.ok) {
+      return ErrorResponse.json(result.error, { status: result.status });
+    }
+
+    return forumJson(result.body);
   } catch (error) {
     console.error("Error loading Discord forum messages:", error);
     return ErrorResponse.json("Failed to load discussion", { status: 502 });
@@ -119,7 +146,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  props: { params: Promise<{ id: string }> }
+  props: { params: Promise<{ id: string }> },
 ) {
   const params = await props.params;
   try {
@@ -168,7 +195,7 @@ export async function POST(
       {
         name: `Discussion for ${post.title}`,
         content: `A new app has been added: ${post.title}\n\nDescription: ${post.description}\n\nDiscuss this app here!`,
-      }
+      },
     );
 
     await prisma.post.update({

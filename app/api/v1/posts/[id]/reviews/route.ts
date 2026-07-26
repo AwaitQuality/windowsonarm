@@ -9,7 +9,8 @@ import type { Review as PrismaReview } from "@/lib/generated/prisma/client";
 import type { Review } from "@/lib/types/review";
 import { PENDING_STATUS_ID } from "@/lib/schemas/post";
 import { handleRouteError } from "@/lib/backend/errors";
-import { isAdminUser } from "@/lib/backend/auth";
+import { listReviews } from "@/lib/backend/reviews";
+import { isAdminRequest } from "@/lib/backend/auth";
 import { lookupClerkUsersByIds } from "@/lib/backend/clerk";
 
 
@@ -80,32 +81,13 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
   }
 }
 
-export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+export async function GET(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
   const params = await props.params;
   try {
-    const { env } = await getCloudflareContext({ async: true });
-    const prisma = getPrisma(env.DB);
-
-    const reviews = await prisma.review.findMany({
-      where: { post_id: params.id },
-      orderBy: { created_at: 'desc' },
-    });
-
-    // Resolve authors through the shared Clerk lookup, which dedupes the ids,
-    // skips the call when there are none, and handles legacy externalId refs.
-    const userMap = await lookupClerkUsersByIds(
-      reviews.map((review) => review.user_id)
-    );
-
-    // Add user information to reviews
-    const reviewsWithUsers: ReviewPayload[] = reviews.map(review => {
-      return {
-        ...review,
-        user: userMap.get(review.user_id),
-      };
-    });
-
-    return DataResponse.json(reviewsWithUsers);
+    return DataResponse.json(await listReviews(params.id));
   } catch (error: unknown) {
     return handleRouteError(error);
   }
@@ -119,9 +101,6 @@ export async function DELETE(
   const params = await props.params;
   try {
     const { userId } = await auth();
-    if (!userId) {
-      return ErrorResponse.json("Authentication required", { status: 401 });
-    }
 
     const searchParams = new URL(request.url).searchParams;
     const reviewId = searchParams.get('reviewId');
@@ -144,11 +123,17 @@ export async function DELETE(
       return ErrorResponse.json("Review not found", { status: 404 });
     }
 
-    // Authors may remove their own review; admins may remove any.
-    if (review.user_id !== userId && !(await isAdminUser(userId))) {
-      return ErrorResponse.json("You cannot delete this review", {
-        status: 403,
-      });
+    // Authors may remove their own review; admins may remove any. The admin
+    // check is request-scoped rather than user-scoped so an API key carrying
+    // reviews:delete works here too — such a caller has no session at all,
+    // which is why the 401 below cannot be hoisted above this point.
+    const isOwnReview = !!userId && review.user_id === userId;
+
+    if (!isOwnReview && !(await isAdminRequest(request, "reviews:delete"))) {
+      return ErrorResponse.json(
+        userId ? "You cannot delete this review" : "Authentication required",
+        { status: userId ? 403 : 401 }
+      );
     }
 
     await prisma.review.delete({

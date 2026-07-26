@@ -31,9 +31,15 @@ const hashIp = async (ip: string, secret: string): Promise<string> => {
 };
 
 /**
- * Records one view per visitor per post and re-derives the counter from the rows
- * that exist. Both statements go out as a single D1 batch, since D1 has no
- * interactive transactions.
+ * Records one view per visitor per post and bumps the counter.
+ *
+ * The counter is incremented rather than re-derived with `SELECT COUNT(*)`: the
+ * recount scanned every View row for the post on each view, which grows with
+ * traffic. The unique index on (post_id, ip_hash) is what keeps the increment
+ * honest — a repeat visitor's insert fails, so the batch never applies.
+ *
+ * Both statements go out as one D1 batch, since D1 has no interactive
+ * transactions, and a failed insert therefore rolls the increment back with it.
  */
 const recordView = async (
   prisma: ReturnType<typeof getPrisma>,
@@ -60,13 +66,10 @@ const recordView = async (
   try {
     await prisma.$transaction([
       prisma.view.create({ data: { post_id: postId, ip_hash } }),
-      prisma.$executeRaw`
-        UPDATE "Post"
-        SET "views_count" = (
-          SELECT COUNT(*) FROM "View" WHERE "View"."post_id" = ${postId}
-        )
-        WHERE "Post"."id" = ${postId}
-      `,
+      prisma.post.update({
+        where: { id: postId },
+        data: { views_count: { increment: 1 } },
+      }),
     ]);
   } catch (error: unknown) {
     const code: unknown =

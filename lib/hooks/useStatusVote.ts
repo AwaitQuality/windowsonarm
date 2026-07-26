@@ -1,14 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { aqApi } from "@/lib/http/client";
-import type { VoteStatusResponse } from "@/app/api/v1/posts/[id]/vote-status/route";
+import type { VoteStatusResponse } from "@/lib/backend/voting";
 
 const queryKey = (postId: string) => ["status-votes", postId];
 
-export const useStatusVote = (postId: string) => {
+export const useStatusVote = (
+  postId: string,
+  /** Prefetched during the server render, so the card renders without a fetch. */
+  initialSummary?: VoteStatusResponse
+) => {
   const queryClient = useQueryClient();
 
   const query = useQuery({
     queryKey: queryKey(postId),
+    initialData: initialSummary,
     queryFn: async () => {
       const response = await aqApi.get<VoteStatusResponse>(
         `/api/v1/posts/${postId}/vote-status`

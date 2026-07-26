@@ -21,6 +21,7 @@ import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import { useToast } from "@/lib/hooks/useToast";
 import { useStatusVote } from "@/lib/hooks/useStatusVote";
+import type { VoteStatusResponse } from "@/lib/backend/voting";
 import { FluentIcon } from "@/lib/hooks/useFluentIcon";
 import {
   COMMUNITY_VOTE_THRESHOLD,
@@ -85,6 +86,8 @@ const useStyles = makeStyles({
 interface StatusVoteCardProps {
   app: FullPost;
   info: InfoResponse;
+  /** Tally resolved during the server render; avoids a fetch on mount. */
+  initialSummary?: VoteStatusResponse;
 }
 
 /**
@@ -95,11 +98,18 @@ interface StatusVoteCardProps {
  * screenful without taking one over: a single card, the ask, the options with
  * their live counts, and how close the community is to deciding.
  */
-export default function StatusVoteCard({ app, info }: StatusVoteCardProps) {
+export default function StatusVoteCard({
+  app,
+  info,
+  initialSummary,
+}: StatusVoteCardProps) {
   const styles = useStyles();
   const { isSignedIn, isLoaded, userId } = useAuth();
   const { notify } = useToast();
-  const { summary, isPending, vote, clearVote } = useStatusVote(app.id);
+  const { summary, isPending, vote, clearVote } = useStatusVote(
+    app.id,
+    initialSummary
+  );
 
   const statuses = info.status
     .filter((status) => status.id !== PENDING_STATUS_ID)

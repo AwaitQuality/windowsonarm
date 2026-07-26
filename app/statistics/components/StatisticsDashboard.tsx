@@ -65,9 +65,17 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-export default function StatisticsDashboard() {
+interface StatisticsDashboardProps {
+  /** Computed on the server (cached 5 min), so the page paints without a fetch. */
+  initialStatistics?: StatisticsResponse;
+}
+
+export default function StatisticsDashboard({
+  initialStatistics,
+}: StatisticsDashboardProps) {
   const { data, isPending, error } = useQuery({
     queryKey: ["statistics"],
+    initialData: initialStatistics,
     queryFn: async () => {
       const response =
         await aqApi.get<StatisticsResponse>("/api/v1/statistics");

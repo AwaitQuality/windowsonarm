@@ -45,11 +45,17 @@ const useStyles = makeStyles({
   },
 });
 
-export default function Reviews({ postId }: { postId: string }) {
+interface ReviewsProps {
+  postId: string;
+  /** Prefetched on the server; avoids a request on mount. */
+  initialReviews?: Review[];
+}
+
+export default function Reviews({ postId, initialReviews }: ReviewsProps) {
   const styles = useStyles();
   const { user, isSignedIn } = useUser();
   const { reviews, isPending, submitReview, deleteReview } =
-    useReviews(postId);
+    useReviews(postId, initialReviews);
 
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [editingReview, setEditingReview] = useState<Review | null>(null);

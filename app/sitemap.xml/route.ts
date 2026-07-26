@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import getPrisma from "@/lib/db/prisma";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { PENDING_STATUS_ID } from "@/lib/schemas/post";
+import { unstable_cache } from "next/cache";
 
 const BASE_URL = "https://windowsonarm.org";
 
-// The sitemap must reflect posts added since the last deploy, so it has to be
-// rendered per request rather than prerendered at build time.
+// Rendered per request rather than frozen at build time, so posts added since
+// the last deploy appear. The database work itself is cached below, so "dynamic"
+// costs a Worker invocation, not a table scan.
 export const dynamic = "force-dynamic";
 
 
@@ -62,12 +64,16 @@ function generateSiteMap(
  `;
 }
 
-export async function GET() {
-  try {
+/**
+ * Crawlers request the sitemap far more often than the content changes, and each
+ * request scans the whole Post and BlogPost tables. One hour of caching makes
+ * that one scan per hour instead of one per crawl.
+ */
+const getSitemapEntries = unstable_cache(
+  async () => {
     const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
-    // Get both apps and blog posts
     const [apps, blogPosts] = await Promise.all([
       prisma.post.findMany({
         // Same visibility rule as the public listing: pending submissions are
@@ -81,12 +87,23 @@ export async function GET() {
       }),
     ]);
 
+    return { apps, blogPosts };
+  },
+  ["sitemap-entries"],
+  { revalidate: 3600 }
+);
+
+export async function GET() {
+  try {
+    const { apps, blogPosts } = await getSitemapEntries();
+
     const sitemap = generateSiteMap(apps, blogPosts);
 
     return new NextResponse(sitemap, {
       status: 200,
       headers: {
         "Content-Type": "text/xml",
+        "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=300",
       },
     });
   } catch (error) {

@@ -2,6 +2,8 @@ import React from "react";
 import { Metadata } from "next";
 import { getAppById } from "@/lib/api";
 import { getInfo } from "@/lib/backend/info";
+import { getVoteSummary } from "@/lib/backend/voting";
+import { listReviews } from "@/lib/backend/reviews";
 import { notFound } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { isAdminUser } from "@/lib/backend/auth";
@@ -48,9 +50,15 @@ export async function generateMetadata(
 
 export default async function AppPage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
-  const [app, info] = await Promise.all([
+  const { userId } = await auth();
+
+  // Prefetched together with the post: the vote tally and the review list were
+  // previously two more Worker invocations fired from the browser on mount.
+  const [app, info, voteSummary, reviews] = await Promise.all([
     getAppById(params.id),
     getInfo(),
+    getVoteSummary(params.id, userId),
+    listReviews(params.id),
   ]);
 
   if (!app) notFound();
@@ -59,7 +67,6 @@ export default async function AppPage(props: { params: Promise<{ id: string }> }
   // its submitter or an admin. Without this the page rendered the review queue
   // to anyone holding an id, even though /api/v1/posts/[id] 404s it.
   if (app.effective_status_id === PENDING_STATUS_ID) {
-    const { userId } = await auth();
     const isOwner = Boolean(userId && app.user_id === userId);
 
     if (!isOwner && !(userId && (await isAdminUser(userId)))) {
@@ -76,8 +83,12 @@ export default async function AppPage(props: { params: Promise<{ id: string }> }
       <AppHeader app={app} />
       <Container>
         {/* First screenful, not the bottom of the sidebar. */}
-        <StatusVoteCard app={app} info={info} />
-        <AppContent app={app} info={info} />
+        <StatusVoteCard
+          app={app}
+          info={info}
+          initialSummary={voteSummary ?? undefined}
+        />
+        <AppContent app={app} info={info} initialReviews={reviews} />
       </Container>
     </div>
   );

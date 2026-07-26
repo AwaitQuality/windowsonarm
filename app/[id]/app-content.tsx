@@ -4,6 +4,7 @@ import React from "react";
 import dynamic from "next/dynamic";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
+import type { Review } from "@/lib/types/review";
 import AppDescription from "./app-description";
 import AppSidebar from "./app-sidebar";
 import { Card, Skeleton, SkeletonItem } from "@fluentui/react-components";
@@ -35,16 +36,22 @@ const Giscus = dynamic(() => import("@giscus/react"), {
 });
 
 interface AppContentProps {
+  /** Prefetched during the server render. */
+  initialReviews?: Review[];
   app: FullPost;
   info: InfoResponse;
 }
 
-export default function AppContent({ app, info }: AppContentProps) {
+export default function AppContent({
+  app,
+  info,
+  initialReviews,
+}: AppContentProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
       <div className="lg:col-span-2">
         <AppDescription app={app} />
-        <Reviews postId={app.id} />
+        <Reviews postId={app.id} initialReviews={initialReviews} />
         <ForumMessages postId={app.id} />
 
         <Card

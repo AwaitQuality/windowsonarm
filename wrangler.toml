@@ -20,3 +20,11 @@ mode = "smart"
 binding = "DB" # i.e. available in your Worker on env.DB
 database_name = "windows-on-arm"
 database_id = "eed82e07-d376-4f11-a167-dd4c15b4f3ee"
+
+# Backs Next's data cache (`unstable_cache`). Without this binding OpenNext
+# resolves the incremental cache to "dummy" and every cached function recomputes
+# on every request. Deliberately a separate bucket from `windowsonarm`, which is
+# public via cdn.windowsonarm.org — cache entries must not be publicly readable.
+[[r2_buckets]]
+binding = "NEXT_INC_CACHE_R2_BUCKET"
+bucket_name = "windowsonarm-next-cache"

@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { aqApi } from "@/lib/http/client";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
-import type { PostsResponse } from "@/app/api/v1/posts/route";
+import type { PostsResponse } from "@/lib/backend/posts";
 
 const CACHE_MS = 1000 * 60 * 5;
 
@@ -15,10 +15,22 @@ interface PostsFilters {
   search: string;
 }
 
-export const usePostsQuery = (filters: PostsFilters) => {
+/**
+ * `initialPage` is the page the server already rendered. Seeding the cache with
+ * it means the browser does not immediately re-request /api/v1/posts for data
+ * that arrived with the HTML — one fewer Worker invocation and one fewer set of
+ * D1 queries per visit.
+ */
+export const usePostsQuery = (
+  filters: PostsFilters,
+  initialPage?: PostsResponse
+) => {
   return useInfiniteQuery({
     queryKey: ["posts", filters.category, filters.status, filters.search],
     initialPageParam: null as string | null,
+    initialData: initialPage
+      ? { pages: [initialPage], pageParams: [null] }
+      : undefined,
     queryFn: async ({ pageParam }) => {
       const params = new URLSearchParams({
         cursor: pageParam ?? "",
@@ -40,9 +52,13 @@ export const usePostsQuery = (filters: PostsFilters) => {
   });
 };
 
-export const useInfoQuery = (selectedStatus: number | null | undefined) => {
+export const useInfoQuery = (
+  selectedStatus: number | null | undefined,
+  initialInfo?: InfoResponse
+) => {
   return useQuery({
     queryKey: ["info", selectedStatus ?? "default"],
+    initialData: initialInfo,
     queryFn: async () => {
       const response = await aqApi.get<InfoResponse>("/api/v1/info");
       if (!response.success) throw new Error(response.error);

@@ -33,7 +33,7 @@ import AuthorCell from "@/components/app-table/author-cell";
 import StatusCell from "@/components/app-table/status-cell";
 import TitleCell from "@/components/app-table/title-cell";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
-import type { PostsResponse } from "@/app/api/v1/posts/route";
+import type { PostsResponse } from "@/lib/backend/posts";
 import { aqApi } from "@/lib/http/client";
 import type { UpvoteRequest } from "@/app/api/v1/posts/upvote/route";
 

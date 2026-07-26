@@ -36,15 +36,9 @@ const nextConfig = {
         source: "/:path*",
         headers: securityHeaders,
       },
-      {
-        source: "/api/v1/posts/:id/forum",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "no-store, max-age=0",
-          },
-        ],
-      },
+      // No Cache-Control rule for /api/v1/posts/:id/forum: the route sets its
+      // own 60s policy, matching the server-side cache around the Discord read.
+      // A blanket no-store here made every app page view a fresh round-trip.
     ];
   },
 };

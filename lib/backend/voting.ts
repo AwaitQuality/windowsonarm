@@ -1,4 +1,6 @@
 import type { PrismaClient } from "@/lib/generated/prisma/client";
+import getPrisma from "@/lib/db/prisma";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { COMMUNITY_VOTE_THRESHOLD } from "@/lib/schemas/post";
 
 export interface VoteTally {
@@ -135,4 +137,54 @@ export const recomputeEffectiveStatus = async (
   });
 
   return result;
+};
+
+
+export interface VoteStatusResponse {
+  votes: VoteTally[];
+  userVote: number | null;
+  /** True when the submitter's status_hint is still standing in as their vote. */
+  submitterImplicitVote: boolean;
+  effective_status_id: number | null;
+  community_voted: boolean;
+}
+
+/**
+ * The vote summary for one post, from the caller's point of view.
+ *
+ * Shared by /api/v1/posts/[id]/vote-status and the app page, which prefetches it
+ * during the server render instead of leaving the browser to request it on
+ * mount. Not cached: `userVote` makes the result per-user.
+ */
+export const getVoteSummary = async (
+  postId: string,
+  userId: string | null,
+  client?: PrismaClient
+): Promise<VoteStatusResponse | null> => {
+  const prisma =
+    client ??
+    getPrisma((await getCloudflareContext({ async: true })).env.DB);
+
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      user_id: true,
+      status_hint: true,
+      effective_status_id: true,
+      community_voted: true,
+      status_votes: { select: { user_id: true, status_id: true } },
+    },
+  });
+
+  if (!post) return null;
+
+  return {
+    votes: tallyVotes(post.status_votes, post.user_id, post.status_hint),
+    userVote:
+      post.status_votes.find((vote) => vote.user_id === userId)?.status_id ??
+      null,
+    submitterImplicitVote: submitterHasImplicitVote(post, post.status_votes),
+    effective_status_id: post.effective_status_id,
+    community_voted: post.community_voted,
+  };
 };

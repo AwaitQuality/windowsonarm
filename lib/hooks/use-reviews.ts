@@ -16,7 +16,11 @@ const reviewsQueryKey = (postId: string) => ["reviews", postId] as const;
  * The reviews query plus the submit/delete mutations for one post. Owns the
  * toasts and cache invalidation so the presentational components stay dumb.
  */
-export const useReviews = (postId: string) => {
+export const useReviews = (
+  postId: string,
+  /** Prefetched during the server render, so the list paints without a fetch. */
+  initialReviews?: Review[]
+) => {
   const { notify } = useToast();
   const queryClient = useQueryClient();
   const queryKey = reviewsQueryKey(postId);
@@ -25,6 +29,7 @@ export const useReviews = (postId: string) => {
 
   const { data: reviews = [], isPending } = useQuery<Review[]>({
     queryKey,
+    initialData: initialReviews,
     queryFn: async () => {
       const response = await aqApi.get<Review[]>(
         `/api/v1/posts/${postId}/reviews`,

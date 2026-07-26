@@ -6,6 +6,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { z } from "zod";
 import { blogPostSchema } from "@/lib/backend/schemas/blog-post";
 import { handleRouteError } from "@/lib/backend/errors";
+import { listPublishedBlogPosts } from "@/lib/backend/blog";
 import { requireAdmin } from "@/lib/backend/auth";
 import { lookupClerkUsersByIds } from "@/lib/backend/clerk";
 
@@ -17,38 +18,7 @@ const updateBlogPostSchema = blogPostSchema.extend({
 
 export async function GET() {
   try {
-    const { env } = await getCloudflareContext({ async: true });
-    const prisma = getPrisma(env.DB);
-
-    const posts = await prisma.blogPost.findMany({
-      where: {
-        published: true,
-      },
-      orderBy: {
-        created_at: 'desc'
-      }
-    });
-
-    // Shared lookup: dedupes the ids and skips the Clerk call when there are
-    // none, which would otherwise list every user in the instance.
-    const usersById = await lookupClerkUsersByIds(
-      posts.map((post) => post.author_id)
-    );
-
-    const postsWithAuthors = posts.map((post) => {
-      const user = usersById.get(post.author_id);
-      return {
-        ...post,
-        author: user
-          ? user
-          : {
-              username: "Anonymous",
-              imageUrl: undefined,
-            },
-      };
-    });
-
-    return DataResponse.json(postsWithAuthors);
+    return DataResponse.json(await listPublishedBlogPosts());
   } catch (error: unknown) {
     return handleRouteError(error);
   }
@@ -56,7 +26,7 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdmin(request, "blog:write");
 
     if (!admin.ok) {
       return admin.response;
@@ -94,7 +64,7 @@ export async function PUT(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const admin = await requireAdmin();
+    const admin = await requireAdmin(request, "blog:write");
 
     if (!admin.ok) {
       return admin.response;

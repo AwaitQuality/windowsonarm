@@ -47,6 +47,10 @@ export async function POST(request: NextRequest) {
       Bucket: env.R2_BUCKET_NAME,
       Key: key,
       ContentType: contentType,
+      // Keys are UUID-based and never overwritten, so the object is immutable.
+      // Without this, nothing downstream (browser or cdn.windowsonarm.org)
+      // caches confidently and every icon view costs an R2 read.
+      CacheControl: "public, max-age=31536000, immutable",
       // Signed, so the PUT is bound to exactly this byte count and this type.
       ContentLength: size,
     });
