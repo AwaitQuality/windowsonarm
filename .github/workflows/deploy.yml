@@ -73,14 +73,25 @@ jobs:
           set -euo pipefail
           sleep 10
           for path in / /statistics /sitemap.xml /api/v1/info /api/v1/posts; do
-            for attempt in 1 2 3; do
-              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${WORKER_URL}${path}?ci=${GITHUB_SHA}${attempt}")
-              echo "worker ${path} attempt ${attempt}: ${code}"
-              if [ "$code" != "200" ]; then
-                echo "::error::${path} returned ${code} on the deployed Worker"
-                exit 1
+            streak=0
+            for attempt in $(seq 1 6); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${WORKER_URL}${path}?ci=${GITHUB_SHA}-${attempt}")
+              if [ "$code" = "200" ]; then
+                streak=$((streak + 1))
+                echo "  ${path} ${code} (streak ${streak})"
+              else
+                # A fresh deploy can 404 for a moment while the hostname is
+                # provisioned, so reset rather than fail on the first miss.
+                streak=0
+                echo "  ${path} ${code} — retrying"
               fi
+              [ "$streak" -ge 3 ] && break
+              sleep 5
             done
+            if [ "$streak" -lt 3 ]; then
+              echo "::error::${path} never returned three consecutive 200s"
+              exit 1
+            fi
           done
 
       - name: Check the production domain is not erroring
