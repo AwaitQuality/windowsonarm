@@ -14,8 +14,17 @@ interface AppDescriptionProps {
   app: FullPost;
 }
 
+/**
+ * Descriptions longer than this get collapsed. It only decides whether the
+ * toggle appears — the clipping itself is done in CSS, so the text is never cut
+ * mid-word.
+ */
+const COLLAPSE_THRESHOLD = 700;
+
 export default function AppDescription({ app }: AppDescriptionProps) {
   const [expanded, setExpanded] = useState(false);
+  const isLong = app.description.length > COLLAPSE_THRESHOLD;
+  const clipped = isLong && !expanded;
 
   return (
     <>
@@ -24,16 +33,40 @@ export default function AppDescription({ app }: AppDescriptionProps) {
         appearance={"filled-alternative"}
         size="large"
       >
-        <GlobalMarkdown>
-          {app.description.slice(0, 820) +
-            (app.description.length > 820 && !expanded ? "..." : "")}
-        </GlobalMarkdown>
-        {expanded && (
-          <GlobalMarkdown>{app.description.slice(820)}</GlobalMarkdown>
-        )}
-        {app.description.length > 820 && (
+        {/*
+          One markdown document, clipped with max-height. It used to be sliced at
+          a character count with the remainder rendered as a second markdown
+          block, which cut words in half ("creating bar" / "riers") and left a
+          stray paragraph break at the seam once expanded.
+        */}
+        <div className="relative">
+          <div
+            className={`overflow-hidden break-words transition-[max-height] duration-300 motion-reduce:transition-none ${
+              clipped ? "max-h-72" : "max-h-none"
+            }`}
+          >
+            <GlobalMarkdown>{app.description}</GlobalMarkdown>
+          </div>
+
+          {clipped && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-16"
+              style={{
+                backgroundImage:
+                  "linear-gradient(to top, var(--colorNeutralBackground2), transparent)",
+              }}
+            />
+          )}
+        </div>
+
+        {isLong && (
           <div className="mt-4">
-            <FluentLink onClick={() => setExpanded(!expanded)}>
+            <FluentLink
+              as="button"
+              onClick={() => setExpanded(!expanded)}
+              aria-expanded={expanded}
+            >
               {expanded ? "Show less" : "Show more"}
             </FluentLink>
           </div>

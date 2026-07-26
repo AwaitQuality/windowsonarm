@@ -14,11 +14,12 @@ const useStyles = makeStyles({
     gap: tokens.spacingVerticalL,
     alignItems: "center",
   },
-  emptyStateTitle: {
-    marginBottom: tokens.spacingVerticalS,
+  emptyStateCopy: {
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalXS,
   },
   emptyStateDescription: {
-    marginBottom: tokens.spacingVerticalL,
     color: tokens.colorNeutralForeground2,
   },
 });
@@ -50,8 +51,8 @@ const ReviewList = ({
   if (reviews.length === 0) {
     return (
       <div className={styles.emptyState}>
-        <div>
-          <Text size={500} weight="semibold" className={styles.emptyStateTitle}>
+        <div className={styles.emptyStateCopy}>
+          <Text as="h3" size={500} weight="semibold">
             No reviews yet
           </Text>
           <Text as="p" size={300} className={styles.emptyStateDescription}>

@@ -128,7 +128,13 @@ export default function StatusVoteCard({
     0
   );
   const votesToDecide = Math.max(0, COMMUNITY_VOTE_THRESHOLD - leadingCount);
-  const isPendingApp = app.status_id === PENDING_STATUS_ID;
+
+  // Keyed off the status actually being shown, not the admin-set one: an app can
+  // still be pending review while the community has already decided it, and
+  // saying "your vote decides it" next to "the community has decided" reads as a
+  // contradiction.
+  const shownStatusId = summary?.effective_status_id ?? app.effective_status_id;
+  const undecided = shownStatusId === PENDING_STATUS_ID;
 
   const handleVote = (statusId: number) =>
     vote.mutate(statusId, {
@@ -136,7 +142,7 @@ export default function StatusVoteCard({
       onError: (error) => notify("Vote not recorded", error.message, "error"),
     });
 
-  const ask = isPendingApp
+  const ask = undecided
     ? "This app has no verified status yet — your vote decides it"
     : "Does this status match your experience?";
 
