@@ -3,18 +3,15 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import getPrisma from "@/lib/db/prisma";
 import DataResponse from "@/lib/backend/response/DataResponse";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getAppById } from "@/lib/api";
 import { recomputeEffectiveStatus } from "@/lib/backend/voting";
 import { updatePostSchema } from "@/lib/schemas/post";
-import axios from "axios";
+import { sendWebhook } from "@/lib/backend/discord";
 
-export const runtime = "edge";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const post = await getAppById(params.id);
 
@@ -25,12 +22,10 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
 
     if (!userId) {
       return ErrorResponse.json("User not found", {
@@ -38,7 +33,7 @@ export async function PUT(
       });
     }
 
-    const user = await clerkClient().users.getUser(userId);
+    const user = await (await clerkClient()).users.getUser(userId);
 
     if (!user) {
       return ErrorResponse.json("User not found", {
@@ -55,7 +50,7 @@ export async function PUT(
     const body = await request.json();
     const validatedData = updatePostSchema.parse(body);
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     // Get the current post to check if status changed
@@ -92,18 +87,14 @@ export async function PUT(
       await recomputeEffectiveStatus(prisma, params.id);
     }
 
-    // If status has changed, send Discord webhook
+    // If status has changed, notify Discord
     if (currentPost && currentPost.status_id !== validatedData.status_id) {
-      const webhookUrl =
-        "https://discord.com/api/webhooks/1331742936060268614/l2aTkSiDDx2J1qagrpRb701SQAtwcZzJjrpqurrpttVXUpI2DfBokUiOo_Pqo63W26y6";
-
-      const embedColor = updatedPost.status.color.replace("#", "");
-      const message = {
+      await sendWebhook(env.DISCORD_WEBHOOK_URL, {
         embeds: [
           {
             title: "App Status Updated",
             description: `**${updatedPost.title}** status has been updated`,
-            color: parseInt(embedColor, 16),
+            color: parseInt(updatedPost.status.color.replace("#", ""), 16),
             fields: [
               {
                 name: "Previous Status",
@@ -125,13 +116,7 @@ export async function PUT(
             timestamp: new Date().toISOString(),
           },
         ],
-      };
-
-      try {
-        await axios.post(webhookUrl, message);
-      } catch (error) {
-        console.error("Failed to send Discord webhook:", error);
-      }
+      });
     }
 
     return DataResponse.json(updatedPost);
@@ -141,12 +126,10 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
 
     if (!userId) {
       return ErrorResponse.json("User not found", {
@@ -154,7 +137,7 @@ export async function DELETE(
       });
     }
 
-    const user = await clerkClient().users.getUser(userId);
+    const user = await (await clerkClient()).users.getUser(userId);
 
     if (!user || user.publicMetadata.role !== "admin") {
       return ErrorResponse.json("Unauthorized", {
@@ -162,7 +145,7 @@ export async function DELETE(
       });
     }
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     await prisma.post.delete({

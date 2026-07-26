@@ -1,8 +1,17 @@
 #:schema node_modules/wrangler/config-schema.json
+# Workers deployment via @opennextjs/cloudflare (replaces the former
+# Cloudflare Pages + @cloudflare/next-on-pages setup).
 name = "windowsonarm-cf"
-compatibility_date = "2024-03-20"
-compatibility_flags = ["nodejs_compat"]
-pages_build_output_dir = ".vercel/output/static"
+main = ".open-next/worker.js"
+compatibility_date = "2025-03-25"
+compatibility_flags = ["nodejs_compat", "global_fetch_strictly_public"]
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[observability]
+enabled = true
 
 [placement]
 mode = "smart"

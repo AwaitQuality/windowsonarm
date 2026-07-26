@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { aqApi } from "@/lib/axios/api";
+import { aqApi } from "@/lib/http/client";
 import { useQuery } from "@tanstack/react-query";
 import { useInfoQuery, usePostsQuery } from "@/lib/hooks/usePosts";
 import {

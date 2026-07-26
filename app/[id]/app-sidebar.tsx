@@ -15,11 +15,6 @@ import {
   InfoLabel,
   LargeTitle,
   Subtitle1,
-  Toast,
-  ToastBody,
-  ToastIntent,
-  ToastTitle,
-  useToastController,
 } from "@fluentui/react-components";
 import {
   ArrowLeftRegular,
@@ -34,7 +29,8 @@ import Link from "next/link";
 import ShareButton from "@/components/share-button";
 import { useUser } from "@clerk/nextjs";
 import dayjs from "dayjs";
-import { aqApi } from "@/lib/axios/api";
+import { aqApi } from "@/lib/http/client";
+import { useToast } from "@/lib/hooks/useToast";
 import StatusVote from "@/components/post/status-vote";
 import EditPost from "@/components/post/edit-post";
 import dynamic from "next/dynamic";
@@ -51,21 +47,8 @@ interface AppSidebarProps {
 export default function AppSidebar({ app, info }: AppSidebarProps) {
   const { user } = useUser();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const { dispatchToast } = useToastController("toaster");
+  const { notify } = useToast();
   const isEditable = user?.publicMetadata.role === "admin";
-
-  const notify = (
-    title: string,
-    subtitle?: string,
-    intent: ToastIntent = "success"
-  ) =>
-    dispatchToast(
-      <Toast>
-        <ToastTitle>{title}</ToastTitle>
-        {subtitle && <ToastBody>{subtitle}</ToastBody>}
-      </Toast>,
-      { intent }
-    );
 
   const handleDelete = async () => {
     try {

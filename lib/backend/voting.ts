@@ -1,4 +1,4 @@
-import type { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@/lib/generated/prisma/client";
 import {
   COMMUNITY_VOTE_THRESHOLD,
   PENDING_STATUS_ID,

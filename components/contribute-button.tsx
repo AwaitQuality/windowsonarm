@@ -13,7 +13,7 @@ import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { aqApi } from "@/lib/axios/api";
+import { aqApi } from "@/lib/http/client";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import { CreatePostInput, createPostSchema } from "@/lib/schemas/post";
 import { useFileUpload } from "@/lib/hooks/useFileUpload";

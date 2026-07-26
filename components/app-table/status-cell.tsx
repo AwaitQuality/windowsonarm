@@ -1,6 +1,6 @@
 import React from "react";
 import { TableCellLayout } from "@fluentui/react-components";
-import { Status } from "@prisma/client";
+import { Status } from "@/lib/generated/prisma/client";
 import CommunityVoteIndicator from "@/components/voting/community-vote-indicator";
 import { getFluentIcon } from "@/lib/hooks/useFluentIcon";
 

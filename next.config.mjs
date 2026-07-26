@@ -1,19 +1,13 @@
-import { setupDevPlatform } from "@cloudflare/next-on-pages/next-dev";
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Fixes some FluentUI issues
-  // eslint-disable-next-line next-on-pages/no-unsupported-configs
   reactStrictMode: false,
-  eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
-    ignoreDuringBuilds: true,
-  },
   async headers() {
     return [
       {
-        source: "/api/v1/discord/forum/:id",
+        source: "/api/v1/posts/:id/forum",
         headers: [
           {
             key: "Cache-Control",
@@ -25,12 +19,8 @@ const nextConfig = {
   },
 };
 
-// Here we use the @cloudflare/next-on-pages next-dev module to allow us to use bindings during local development
-// (when running the application with `next dev`), for more information see:
-// https://github.com/cloudflare/next-on-pages/blob/5712c57ea7/internal-packages/next-dev/README.md
-if (process.env.NODE_ENV === "development") {
-  console.log("Setting up dev platform");
-  await setupDevPlatform();
-}
+// Makes the Cloudflare bindings declared in wrangler.toml (D1, vars) available
+// to `next dev`, the same way they are in a deployed Worker.
+initOpenNextCloudflareForDev();
 
 export default nextConfig;

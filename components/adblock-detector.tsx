@@ -3,6 +3,12 @@
 import { useDetectAdBlock } from "adblock-detect-react";
 import { useState, useEffect } from "react";
 
+/**
+ * Ad blockers are usually on during local development, so the nag would cover
+ * the UI on every page. Skipped unless this is a production build.
+ */
+const ENABLED = process.env.NODE_ENV === "production";
+
 export default function AdBlockDetector() {
   const adBlockDetected = useDetectAdBlock();
   const [showModal, setShowModal] = useState(true);
@@ -19,7 +25,7 @@ export default function AdBlockDetector() {
     return () => clearInterval(timer);
   }, [showModal, timeLeft]);
 
-  if (!adBlockDetected) return null;
+  if (!ENABLED || !adBlockDetected) return null;
 
   if (minimized) {
     return (

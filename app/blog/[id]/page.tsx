@@ -5,13 +5,13 @@ import { Container } from "@/components/ui/container";
 import BlogPostContent from "./blog-post-content";
 import BlogPostSkeleton from "./blog-post-skeleton";
 
-export const runtime = "edge";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { id: string };
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+): Promise<Metadata> {
+  const params = await props.params;
   const post = await getBlogPostById(params.id);
 
   if (!post) {
@@ -27,11 +27,12 @@ export async function generateMetadata({
   };
 }
 
-export default async function BlogPostPage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function BlogPostPage(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
   const post = await getBlogPostById(params.id);
 
   if (!post) return <div>Blog post not found</div>;

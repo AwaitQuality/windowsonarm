@@ -4,7 +4,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Title1, Text, ProgressBar } from "@fluentui/react-components";
 import Navigation from "@/components/navigation";
-import { aqApi } from "@/lib/axios/api";
+import { aqApi } from "@/lib/http/client";
 import { TotalAppsCard } from "./components/TotalAppsCard";
 import { AverageRatingCard } from "./components/AverageRatingCard";
 import { RecentActivityCard } from "./components/RecentActivityCard";

@@ -3,27 +3,24 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { blogPostSchema } from "@/lib/backend/schemas/blog-post";
 
-export const runtime = "edge";
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
 
-    const user = await clerkClient().users.getUser(userId);
+    const user = await (await clerkClient()).users.getUser(userId);
     if (user.publicMetadata.role !== "admin") {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     await prisma.blogPost.delete({
@@ -36,17 +33,15 @@ export async function DELETE(
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
 
-    const user = await clerkClient().users.getUser(userId);
+    const user = await (await clerkClient()).users.getUser(userId);
     if (user.publicMetadata.role !== "admin") {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
@@ -54,7 +49,7 @@ export async function PUT(
     const body = await request.json();
     const validatedData = blogPostSchema.parse(body);
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     const post = await prisma.blogPost.update({

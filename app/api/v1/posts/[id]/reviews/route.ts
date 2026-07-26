@@ -3,11 +3,10 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { z } from "zod";
 import { User } from "@clerk/nextjs/server";
 
-export const runtime = "edge";
 
 const reviewSchema = z.object({
   rating: z.number().min(1).max(5),
@@ -28,12 +27,10 @@ interface Review {
   };
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
@@ -41,7 +38,7 @@ export async function POST(
     const body = await request.json();
     const validatedData = reviewSchema.parse(body);
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     // Check if user already reviewed this post
@@ -82,12 +79,10 @@ export async function POST(
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     const reviews = await prisma.review.findMany({
@@ -99,7 +94,7 @@ export async function GET(
     const userIds = [...new Set(reviews.map(review => review.user_id))];
 
     // Fetch user information from Clerk
-    const usersResponse = await clerkClient().users.getUserList({
+    const usersResponse = await (await clerkClient()).users.getUserList({
       userId: userIds,
     });
     const users = usersResponse.data;
@@ -125,10 +120,11 @@ export async function GET(
 // Add DELETE method to handle review removal
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { userId } = auth();
+    await props.params;
+    const { userId } = await auth();
     if (!userId) {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
@@ -140,11 +136,11 @@ export async function DELETE(
       return ErrorResponse.json("Review ID is required", { status: 400 });
     }
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     // Check if user is admin
-    const user = await clerkClient().users.getUser(userId);
+    const user = await (await clerkClient()).users.getUser(userId);
     const isAdmin = user.publicMetadata?.role === 'admin';
 
     if (!isAdmin) {

@@ -1,126 +1,102 @@
 import { NextRequest, NextResponse } from "next/server";
-import axios from "axios";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
+import {
+  avatarUrl,
+  createForumThread,
+  getThread,
+  getThreadMessages,
+  isThread,
+  unarchiveThread,
+} from "@/lib/backend/discord";
 
-export const runtime = "edge";
+export interface ForumMessage {
+  id: string;
+  content: string;
+  author: { username: string; avatar_url: string | null };
+  timestamp: number;
+}
+
+export interface ForumResponse {
+  messages: ForumMessage[];
+  discordUrl: string;
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
     const appId = params.id;
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
     const discordToken = env.DISCORD_BOT_TOKEN;
     const guildId = env.DISCORD_GUILD_ID;
 
-    // Fetch the post to get the Discord forum post ID
     const post = await prisma.post.findUnique({
       where: { id: appId },
       select: { discord_forum_post_id: true, title: true, description: true },
     });
 
     if (!post) {
-      throw new Error("Post not found");
+      return ErrorResponse.json("Post not found", { status: 404 });
     }
 
     let forumPostId = post.discord_forum_post_id;
 
-    // If there's no forum post ID, create one
+    // No thread yet for this app: open one and remember it.
     if (!forumPostId) {
-      const forumPostData = {
-        name: `Discussion for ${post.title}`,
-        auto_archive_duration: 10080, // 7 days
-        message: {
-          content: `A new app has been added: ${post.title}\n\nDescription: ${post.description}\n\nDiscuss this app here!`,
-        },
-      };
-
-      const forumPostResponse = await axios.post(
-        `https://discord.com/api/v10/channels/${env.DISCORD_FORUM_CHANNEL_ID}/threads`,
-        forumPostData,
+      const thread = await createForumThread(
+        discordToken,
+        env.DISCORD_FORUM_CHANNEL_ID,
         {
-          headers: {
-            Authorization: `Bot ${discordToken}`,
-            "Content-Type": "application/json",
-          },
+          name: `Discussion for ${post.title}`,
+          content: `A new app has been added: ${post.title}\n\nDescription: ${post.description}\n\nDiscuss this app here!`,
         }
       );
 
-      forumPostId = forumPostResponse.data.id;
+      forumPostId = thread.id;
 
-      // Update post with Discord forum post info
       await prisma.post.update({
         where: { id: appId },
         data: { discord_forum_post_id: forumPostId },
       });
     }
 
-    // From here, the code is similar to the original route
-    const headers = {
-      Authorization: `Bot ${discordToken}`,
-      "Content-Type": "application/json",
-      "Cache-Control": "no-cache",
-    };
+    const thread = await getThread(discordToken, forumPostId);
 
-    // Fetch the thread information
-    const threadResponse = await axios.get(
-      `https://discord.com/api/v10/channels/${forumPostId}`,
-      { headers }
-    );
-
-    const threadData = threadResponse.data;
-
-    if (![10, 11, 12].includes(threadData.type)) {
-      throw new Error("The provided ID does not correspond to a thread.");
+    if (!isThread(thread)) {
+      return ErrorResponse.json(
+        "The linked Discord channel is not a thread",
+        { status: 502 }
+      );
     }
 
-    // Unarchive the thread if necessary
-    if (threadData.thread_metadata?.archived) {
-      await axios.patch(
-        `https://discord.com/api/v10/channels/${forumPostId}`,
-        { archived: false },
-        { headers }
-      );
+    if (thread.thread_metadata?.archived) {
+      await unarchiveThread(discordToken, forumPostId);
+      // Discord needs a moment before an unarchived thread serves messages.
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    // Add a unique timestamp to the API request
-    const timestamp = Date.now();
-    const response = await axios.get(
-      `https://discord.com/api/v10/channels/${forumPostId}/messages?timestamp=${timestamp}`,
-      {
-        headers,
-        params: {
-          limit: 100,
-        },
-      }
-    );
+    const messages = await getThreadMessages(discordToken, forumPostId);
 
-    const messagesData = response.data;
-
-    // Format messages
-    const formattedMessages = messagesData.map((msg: any) => ({
-      id: msg.id,
-      content: msg.content.replace(/\n/g, "\\n"), // Escape newline characters
+    const formattedMessages: ForumMessage[] = messages.map((message) => ({
+      id: message.id,
+      content: message.content,
       author: {
-        username: msg.author.username,
-        avatar_url: msg.author.avatar
-          ? `https://cdn.discordapp.com/avatars/${msg.author.id}/${msg.author.avatar}.png`
-          : null,
+        username: message.author.username,
+        avatar_url: avatarUrl(message.author),
       },
-      timestamp: new Date(msg.timestamp).getTime(),
+      timestamp: new Date(message.timestamp).getTime(),
     }));
 
-    const nextResponse = NextResponse.json({
+    const nextResponse = NextResponse.json<ForumResponse>({
       messages: formattedMessages,
       discordUrl: `https://discord.com/channels/${guildId}/${forumPostId}`,
     });
 
-    // Set cache control headers
     nextResponse.headers.set(
       "Cache-Control",
       "no-store, no-cache, must-revalidate, proxy-revalidate"
@@ -131,9 +107,7 @@ export async function GET(
 
     return nextResponse;
   } catch (error) {
-    console.error(error);
-    return ErrorResponse.json((error as Error).message, {
-      status: 500,
-    });
+    console.error("Error loading Discord forum messages:", error);
+    return ErrorResponse.json("Failed to load discussion", { status: 502 });
   }
 }

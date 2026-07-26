@@ -2,10 +2,9 @@ import { NextRequest } from "next/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { auth } from "@clerk/nextjs/server";
 
-export const runtime = "edge";
 
 export interface UpvoteRequest {
   postId: string;
@@ -16,13 +15,13 @@ export async function POST(request: NextRequest) {
     const { postId } = (await request.json()) as UpvoteRequest;
 
     // get user via next auth
-    const userId = auth().userId;
+    const { userId } = await auth();
 
     if (!userId) {
       return ErrorResponse.json("User not found");
     }
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
 
     const prisma = getPrisma(env.DB);
 

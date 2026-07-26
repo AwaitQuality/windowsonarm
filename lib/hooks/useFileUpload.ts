@@ -1,6 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
-import { aqApi } from "@/lib/axios/api";
+import { aqApi } from "@/lib/http/client";
 import {
   FileUploadRequest,
   FileUploadResponse,
@@ -16,9 +15,15 @@ export const uploadFileToR2 = async (file: File): Promise<string> => {
     throw new Error("Failed to get upload URL");
   }
 
-  await axios.put(response.data.url, file, {
+  const upload = await fetch(response.data.url, {
+    method: "PUT",
     headers: { "Content-Type": file.type },
+    body: file,
   });
+
+  if (!upload.ok) {
+    throw new Error(`Upload failed with status ${upload.status}`);
+  }
 
   return response.data.downloadUrl;
 };

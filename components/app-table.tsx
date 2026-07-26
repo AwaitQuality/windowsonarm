@@ -24,7 +24,7 @@ import {
   ArrowRightRegular,
 } from "@fluentui/react-icons";
 import dayjs from "dayjs";
-import { Post } from "@prisma/client";
+import { Post } from "@/lib/generated/prisma/client";
 import type { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query";
 import { useToast } from "@/lib/hooks/useToast";
 import AuthorCell from "@/components/app-table/author-cell";
@@ -32,7 +32,7 @@ import StatusCell from "@/components/app-table/status-cell";
 import TitleCell from "@/components/app-table/title-cell";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { PostsResponse } from "@/app/api/v1/posts/route";
-import { aqApi } from "@/lib/axios/api";
+import { aqApi } from "@/lib/http/client";
 import { UpvoteRequest } from "@/app/api/v1/posts/upvote/route";
 
 const GoogleAdsense = dynamic(() => import("./google-adsense"), { ssr: false });

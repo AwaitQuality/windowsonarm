@@ -43,3 +43,9 @@ next-env.d.ts
 .idea
 
 export
+
+# Prisma 7 generates the client into the repo
+lib/generated/
+
+# OpenNext build output
+.open-next/

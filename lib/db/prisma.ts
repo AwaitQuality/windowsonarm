@@ -1,12 +1,12 @@
-import { PrismaClient } from "@prisma/client";
-import { D1Database } from "@cloudflare/workers-types";
-import { DriverAdapter } from "@prisma/client/runtime/library";
+import { PrismaClient } from "@/lib/generated/prisma/client";
 import { PrismaD1 } from "@prisma/adapter-d1";
+import type { D1Database } from "@cloudflare/workers-types";
 
-const getPrisma = (connection: D1Database): PrismaClient => {
-  let adapter: DriverAdapter = new PrismaD1(connection);
-
-  return new PrismaClient({ adapter });
-};
+/**
+ * One client per request: Workers isolates are short-lived and the D1 adapter
+ * is bound to the incoming request's binding.
+ */
+const getPrisma = (connection: D1Database): PrismaClient =>
+  new PrismaClient({ adapter: new PrismaD1(connection) });
 
 export default getPrisma;

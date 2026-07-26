@@ -3,13 +3,12 @@ import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { auth, getAuth } from "@clerk/nextjs/server";
-import axios from "axios";
+import { createForumThread } from "@/lib/backend/discord";
 import { createPostSchema, PENDING_STATUS_ID } from "@/lib/schemas/post";
 import { lookupClerkUsersByIds } from "@/lib/hooks/useClerkUsersByPostIds";
 
-export const runtime = "edge";
 
 const POSTS_PER_PAGE = 40; // Number of posts to fetch per batch
 
@@ -32,7 +31,7 @@ export async function GET(request: NextRequest) {
       status = null;
     }
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
 
     const prisma = getPrisma(env.DB);
 
@@ -130,13 +129,13 @@ export async function POST(request: NextRequest) {
     // Validate request data
     const validatedData = createPostSchema.parse(postRequest);
 
-    const userId = auth().userId;
+    const { userId } = await auth();
 
     if (!userId) {
       return ErrorResponse.json("User not found");
     }
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
 
     const prisma = getPrisma(env.DB);
 
@@ -180,33 +179,25 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create a forum post using Discord API
-    const forumPostData = {
-      name: `Discussion for ${post.title}`,
-      auto_archive_duration: 10080, // 7 days
-      message: {
-        content: `A new app has been added: ${post.title}\n\nDescription: ${post.description}\n\nDiscuss this app here!`,
-      },
-    };
+    // Open the Discord discussion thread for this app. A Discord outage must
+    // not lose the post that was already created.
+    try {
+      const thread = await createForumThread(
+        env.DISCORD_BOT_TOKEN,
+        env.DISCORD_FORUM_CHANNEL_ID,
+        {
+          name: `Discussion for ${post.title}`,
+          content: `A new app has been added: ${post.title}\n\nDescription: ${post.description}\n\nDiscuss this app here!`,
+        }
+      );
 
-    const forumPostResponse = await axios.post(
-      `https://discord.com/api/v10/channels/${env.DISCORD_FORUM_CHANNEL_ID}/threads`,
-      forumPostData,
-      {
-        headers: {
-          Authorization: `Bot ${env.DISCORD_BOT_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    // Update post with Discord forum post info
-    await prisma.post.update({
-      where: { id: post.id },
-      data: {
-        discord_forum_post_id: forumPostResponse.data.id,
-      },
-    });
+      await prisma.post.update({
+        where: { id: post.id },
+        data: { discord_forum_post_id: thread.id },
+      });
+    } catch (error) {
+      console.error("Failed to create Discord forum thread:", error);
+    }
 
     return DataResponse.json(post);
   } catch (error: any) {

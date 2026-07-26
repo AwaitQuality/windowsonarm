@@ -25,7 +25,7 @@ import {
   StarRegular,
 } from "@fluentui/react-icons";
 import { useUser } from "@clerk/nextjs";
-import { aqApi } from "@/lib/axios/api";
+import { aqApi } from "@/lib/http/client";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

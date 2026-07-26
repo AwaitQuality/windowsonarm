@@ -1,11 +1,13 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+  // Required on Cloudflare: workerd forbids runtime Wasm compilation, so the
+  // client must be generated against the workerd runtime instead.
+  runtime  = "cloudflare"
 }
 
 datasource db {
   provider = "sqlite"
-  url      = ""
 }
 
 model Post {

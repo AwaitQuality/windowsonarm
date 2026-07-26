@@ -18,7 +18,7 @@ export const lookupClerkUsersByIds = async (
   const result = new Map<string, User>();
   if (ids.length === 0) return result;
 
-  const client = clerkClient();
+  const client = await clerkClient();
 
   const [byId, byExternal] = await Promise.all([
     client.users.getUserList({ userId: ids, limit: LIMIT }),

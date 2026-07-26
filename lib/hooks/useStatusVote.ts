@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { aqApi } from "@/lib/axios/api";
+import { aqApi } from "@/lib/http/client";
 import type { VoteStatusResponse } from "@/app/api/v1/posts/[id]/vote-status/route";
 
 const queryKey = (postId: string) => ["status-votes", postId];

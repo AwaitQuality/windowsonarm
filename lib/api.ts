@@ -1,7 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { headers } from "next/headers";
 
 import { cache } from "react";
@@ -11,13 +11,13 @@ export const getAppById = cache(
     id: string,
     logView: boolean = true
   ): Promise<FullPost | null> => {
-  const userId = auth().userId;
-  const { env } = getRequestContext();
+  const { userId } = await auth();
+  const { env } = await getCloudflareContext({ async: true });
   const prisma = getPrisma(env.DB);
 
   try {
     // Track view
-    const headersList = headers();
+    const headersList = await headers();
     const ip =
       headersList.get("x-forwarded-for") ||
       headersList.get("x-real-ip") ||
@@ -95,7 +95,7 @@ export const getAppById = cache(
     };
 
     if (post.user_id) {
-      const user = await clerkClient().users.getUserList({
+      const user = await (await clerkClient()).users.getUserList({
         userId: [post.user_id],
       });
 
@@ -103,7 +103,7 @@ export const getAppById = cache(
         fullPost.user = user.data[0];
       }
 
-      const externalId = await clerkClient().users.getUserList({
+      const externalId = await (await clerkClient()).users.getUserList({
         externalId: [post.user_id],
       });
 
@@ -120,7 +120,7 @@ export const getAppById = cache(
 });
 
 export async function getBlogPostById(id: string) {
-  const { env } = getRequestContext();
+  const { env } = await getCloudflareContext({ async: true });
   const prisma = getPrisma(env.DB);
 
   const post = await prisma.blogPost.findUnique({
@@ -133,7 +133,7 @@ export async function getBlogPostById(id: string) {
 
   // Fetch author information from Clerk
   try {
-    const user = await clerkClient().users.getUser(post.author_id);
+    const user = await (await clerkClient()).users.getUser(post.author_id);
     return {
       ...post,
       author: {

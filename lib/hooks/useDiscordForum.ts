@@ -1,57 +1,32 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
+import type { ForumResponse } from "@/app/api/v1/posts/[id]/forum/route";
 
-interface DiscordMessage {
-  id: string;
-  content: string;
-  author: {
-    username: string;
-    avatar_url: string | null;
-  };
-  timestamp: number;
-}
+const fetchForum = async (postId: string): Promise<ForumResponse> => {
+  const response = await fetch(`/api/v1/posts/${postId}/forum`, {
+    cache: "no-store",
+  });
 
-interface DiscordForumResponse {
-  messages: DiscordMessage[];
-  discordUrl: string;
-}
+  if (!response.ok) {
+    throw new Error(`Failed to load discussion (${response.status})`);
+  }
+
+  return (await response.json()) as ForumResponse;
+};
 
 export function useDiscordForum(postId: string | null) {
-  const [messages, setMessages] = useState<DiscordMessage[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [discordUrl, setDiscordUrl] = useState<string | null>(null);
+  const { data, isPending, error } = useQuery({
+    queryKey: ["discord-forum", postId],
+    queryFn: () => fetchForum(postId as string),
+    enabled: Boolean(postId),
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 30,
+  });
 
-  useEffect(() => {
-    if (!postId) {
-      setLoading(false);
-      return;
-    }
-
-    async function fetchMessages() {
-      try {
-        const response = await axios.get<DiscordForumResponse>(
-          `/api/v1/posts/${postId}/forum`,
-          {
-            headers: {
-              "Cache-Control": "no-cache",
-              Pragma: "no-cache",
-              Expires: "0",
-            },
-          }
-        );
-        setMessages(response.data.messages);
-        setDiscordUrl(response.data.discordUrl);
-      } catch (err) {
-        console.error(err);
-        setError(err as Error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchMessages();
-  }, [postId]);
-
-  return { messages, loading, error, discordUrl };
+  return {
+    messages: data?.messages ?? null,
+    discordUrl: data?.discordUrl ?? null,
+    // A disabled query stays pending forever, so treat "no postId" as settled.
+    loading: Boolean(postId) && isPending,
+    error: (error as Error | null) ?? null,
+  };
 }

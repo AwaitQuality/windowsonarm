@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
 const BASE_URL = "https://windowsonarm.org";
 
-export const runtime = "edge";
+// The sitemap must reflect posts added since the last deploy, so it has to be
+// rendered per request rather than prerendered at build time.
+export const dynamic = "force-dynamic";
+
 
 function generateSiteMap(
   apps: { id: string; updated_at: Date }[],
@@ -60,7 +63,7 @@ function generateSiteMap(
 
 export async function GET() {
   try {
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     // Get both apps and blog posts

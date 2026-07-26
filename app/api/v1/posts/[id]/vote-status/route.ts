@@ -3,14 +3,13 @@ import { auth } from "@clerk/nextjs/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import {
   recomputeEffectiveStatus,
   submitterHasImplicitVote,
   tallyVotes,
 } from "@/lib/backend/voting";
 
-export const runtime = "edge";
 
 // Add interface for request body
 interface VoteStatusRequest {
@@ -54,12 +53,10 @@ const buildSummary = async (
   };
 };
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
@@ -72,7 +69,7 @@ export async function POST(
       return ErrorResponse.json("Invalid status_id", { status: 400 });
     }
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     const post = await prisma.post.findUnique({
@@ -123,13 +120,11 @@ export async function POST(
   }
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
-    const { userId } = auth();
-    const { env } = getRequestContext();
+    const { userId } = await auth();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     const summary = await buildSummary(prisma, params.id, userId);
@@ -143,17 +138,15 @@ export async function GET(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     await prisma.statusVote

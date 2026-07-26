@@ -15,9 +15,8 @@ import { Coffee, Github, Menu as MenuIcon, Home } from "lucide-react";
 import {
   ClerkLoading,
   GoogleOneTap,
-  SignedIn,
-  SignedOut,
   UserButton,
+  useAuth,
 } from "@clerk/nextjs";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -28,6 +27,7 @@ interface NavigationProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 const Navigation = ({ className, ...props }: NavigationProps) => {
   const pathname = usePathname();
+  const { isLoaded, isSignedIn } = useAuth();
 
   return (
     <>
@@ -99,7 +99,7 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
                     </div>
                   </Link>
                 </MenuItem>
-                <SignedOut>
+                {isLoaded && !isSignedIn && (
                   <MenuItem>
                     <Link href="/auth/signin" className="w-full">
                       <div className="flex items-center gap-2 w-full">
@@ -107,7 +107,7 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
                       </div>
                     </Link>
                   </MenuItem>
-                </SignedOut>
+                )}
               </MenuList>
             </MenuPopover>
           </Menu>
@@ -158,14 +158,12 @@ const Navigation = ({ className, ...props }: NavigationProps) => {
           <ClerkLoading>
             <Button disabled>Loading...</Button>
           </ClerkLoading>
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
-          <SignedOut>
+          {isLoaded && isSignedIn && <UserButton />}
+          {isLoaded && !isSignedIn && (
             <Link href="/auth/signin" className="hidden sm:inline-block">
               <Button>Sign in</Button>
             </Link>
-          </SignedOut>
+          )}
         </div>
       </div>
       <GoogleOneTap />

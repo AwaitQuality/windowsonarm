@@ -1,10 +1,9 @@
 import { NextRequest } from "next/server";
-import { Status } from "@prisma/client";
+import { Status } from "@/lib/generated/prisma/client";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import { getInfo } from "@/lib/backend/info";
 import DataResponse from "@/lib/backend/response/DataResponse";
 
-export const runtime = "edge";
 
 export interface StatusWithPercentage extends Status {
   percentage: number;

@@ -3,14 +3,13 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { blogPostSchema, UpdateBlogPostRequest } from "@/lib/backend/schemas/blog-post";
 
-export const runtime = "edge";
 
 export async function GET(request: NextRequest) {
   try {
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     const posts = await prisma.blogPost.findMany({
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
     });
 
     const authorIds = posts.map((post) => post.author_id);
-    const users = await clerkClient().users.getUserList({ userId: authorIds });
+    const users = await (await clerkClient()).users.getUserList({ userId: authorIds });
     const usersById = new Map(users.data.map((user) => [user.id, user]));
 
     const postsWithAuthors = posts.map((post) => {
@@ -51,12 +50,12 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
 
-    const user = await clerkClient().users.getUser(userId);
+    const user = await (await clerkClient()).users.getUser(userId);
     if (user.publicMetadata.role !== "admin") {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
@@ -69,7 +68,7 @@ export async function PUT(request: NextRequest) {
       validatedData.image_url = undefined;
     }
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     const post = await prisma.blogPost.update({
@@ -88,12 +87,12 @@ export async function PUT(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
 
-    const user = await clerkClient().users.getUser(userId);
+    const user = await (await clerkClient()).users.getUser(userId);
     if (user.publicMetadata.role !== "admin") {
       return ErrorResponse.json("Unauthorized", { status: 401 });
     }
@@ -111,7 +110,7 @@ export async function POST(request: NextRequest) {
         .trim() + "...";
     }
 
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     const post = await prisma.blogPost.create({

@@ -1,12 +1,12 @@
 import { StatusWithPercentage } from "@/app/api/v1/info/route";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import { unstable_cache } from "next/cache";
 
 export const getInfo = unstable_cache(
   async (): Promise<InfoResponse> => {
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
 
     const prisma = getPrisma(env.DB);
 

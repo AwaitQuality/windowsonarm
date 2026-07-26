@@ -3,7 +3,7 @@ import {
   useInfiniteQuery,
   useQuery,
 } from "@tanstack/react-query";
-import { aqApi } from "@/lib/axios/api";
+import { aqApi } from "@/lib/http/client";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import { PostsResponse } from "@/app/api/v1/posts/route";
 

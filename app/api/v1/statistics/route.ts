@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import getPrisma from "@/lib/db/prisma";
-import { getRequestContext } from "@cloudflare/next-on-pages";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 
-export const runtime = "edge";
 
 export async function GET() {
   try {
-    const { env } = getRequestContext();
+    const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
     // Get total apps count and last week's new apps

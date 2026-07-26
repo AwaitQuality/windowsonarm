@@ -38,7 +38,7 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { CreateBlogPost } from "@/components/blog/create-blog-post";
 import { useRouter } from "next/navigation";
-import { aqApi } from "@/lib/axios/api";
+import { aqApi } from "@/lib/http/client";
 import dynamic from "next/dynamic";
 
 const GoogleAdsense = dynamic(() => import("@/components/google-adsense"), {

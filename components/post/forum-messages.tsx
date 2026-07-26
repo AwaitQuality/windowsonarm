@@ -126,9 +126,8 @@ export default function ForumMessages({ postId }: ForumMessagesProps) {
               }
             />
             <div className={classes.messageContent}>
-              <GlobalMarkdown>
-                {message.content.replace(/\\n/g, "<br/>")}
-              </GlobalMarkdown>
+              {/* Discord sends real newlines; remark-breaks renders them as <br>. */}
+              <GlobalMarkdown>{message.content}</GlobalMarkdown>
             </div>
           </Card>
         ))}

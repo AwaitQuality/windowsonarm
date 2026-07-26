@@ -6,13 +6,13 @@ import { Container } from "@/components/ui/container";
 import AppHeader from "./app-header";
 import AppContent from "./app-content";
 
-export const runtime = "edge";
 
-export async function generateMetadata({
-  params,
-}: {
-  params: { id: string };
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ id: string }>;
+  }
+): Promise<Metadata> {
+  const params = await props.params;
   const app = await getAppById(params.id, false);
 
   if (!app) {
@@ -29,7 +29,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function AppPage({ params }: { params: { id: string } }) {
+export default async function AppPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const [app, info] = await Promise.all([
     getAppById(params.id),
     getInfo(),
