@@ -7,34 +7,28 @@ import { auth } from "@clerk/nextjs/server";
 import "@/lib/polyfills";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-
-
-export interface FileUploadRequest {
-  filename: string;
-  contentType: string;
-}
-
-export interface FileUploadResponse {
-  url: string;
-  fields: Record<string, string>;
-  downloadUrl: string;
-}
+import {
+  EXTENSION_BY_CONTENT_TYPE,
+  FileUploadResponse,
+  uploadRequestSchema,
+} from "@/lib/schemas/upload";
 
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await auth();
 
     if (!userId) {
-      return ErrorResponse.json("User not authorized");
+      return ErrorResponse.json("Unauthorized", { status: 401 });
     }
 
+    const parsed = uploadRequestSchema.safeParse(await request.json());
+
+    if (!parsed.success) {
+      return ErrorResponse.json("Invalid upload request", { status: 400 });
+    }
+
+    const { contentType, size } = parsed.data;
     const { env } = await getCloudflareContext({ async: true });
-    const { filename, contentType } =
-      (await request.json()) as FileUploadRequest;
-
-    if (!filename || !contentType) {
-      return ErrorResponse.json("Filename and content type are required");
-    }
 
     const s3Client = new S3Client({
       region: "auto",
@@ -45,12 +39,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const key = `uploads/${userId}/${Date.now()}-${filename}`;
+    // The key is fully server-derived: a client-supplied filename could contain
+    // `../` and escape the per-user prefix.
+    const key = `uploads/${userId}/${crypto.randomUUID()}.${EXTENSION_BY_CONTENT_TYPE[contentType]}`;
 
     const putObjectCommand = new PutObjectCommand({
       Bucket: env.R2_BUCKET_NAME,
       Key: key,
       ContentType: contentType,
+      // Signed, so the PUT is bound to exactly this byte count and this type.
+      ContentLength: size,
     });
 
     const signedUrl = await getSignedUrl(s3Client, putObjectCommand, {
@@ -59,13 +57,13 @@ export async function POST(request: NextRequest) {
 
     const publicUrl = `${env.R2_PUBLIC_URL}/${key}`;
 
-    return DataResponse.json({
+    return DataResponse.json<FileUploadResponse>({
       url: signedUrl,
       fields: {}, // R2 doesn't require additional fields like S3 does
       downloadUrl: publicUrl,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Upload error:", error);
-    return ErrorResponse.json(error.message);
+    return ErrorResponse.json("Failed to prepare upload");
   }
 }

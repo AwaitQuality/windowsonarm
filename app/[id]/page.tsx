@@ -25,7 +25,7 @@ export async function generateMetadata(
   return {
     title: `Is ${app.title} ARM ready? - Windows on ARM`,
     description: `Check if ${app.title} is ARM ready on Windows and can be used on Windows ARM devices such as the Surface with the Snapdragon X Elite.`,
-    keywords: app.tags.map((tag: any) => tag.name).join(", "),
+    keywords: app.tags.map((tag) => tag.name).join(", "),
   };
 }
 
@@ -38,14 +38,15 @@ export default async function AppPage(props: { params: Promise<{ id: string }> }
 
   if (!app) return <div>App not found: {params.id}</div>;
 
-  const serializedApp = JSON.parse(JSON.stringify(app));
-  const serializedInfo = JSON.parse(JSON.stringify(info));
-
+  // `app` and `info` cross the server/client boundary as-is: the RSC payload
+  // serializes Date values natively, so the JSON round-trip this used to do was
+  // a deep clone of the whole post and info payload on every render that also
+  // erased the prop types down to `any`.
   return (
     <div className="min-h-screen">
-      <AppHeader app={serializedApp} />
+      <AppHeader app={app} />
       <Container>
-        <AppContent app={serializedApp} info={serializedInfo} />
+        <AppContent app={app} info={info} />
       </Container>
     </div>
   );

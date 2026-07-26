@@ -1,18 +1,36 @@
-import { useEffect, useState } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 
+const subscribeNothing = () => () => {};
+const notMatched = () => false;
+
+/**
+ * Tracks a media query.
+ *
+ * Backed by `useSyncExternalStore` rather than state-plus-effect: the first
+ * client render already has the correct value (no one-frame flash at the wrong
+ * breakpoint) and no setState happens inside an effect. During SSR there is no
+ * viewport to measure, so the snapshot is `false`.
+ */
 export const useMediaQuery = (query: string): boolean => {
-  const [matches, setMatches] = useState(false);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const media = window.matchMedia(query);
+      media.addEventListener("change", onStoreChange);
+      return () => media.removeEventListener("change", onStoreChange);
+    },
+    [query]
+  );
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  const getSnapshot = useCallback(
+    () => window.matchMedia(query).matches,
+    [query]
+  );
 
-    const media = window.matchMedia(query);
-    setMatches(media.matches);
+  const isBrowser = typeof window !== "undefined";
 
-    const listener = (event: MediaQueryListEvent) => setMatches(event.matches);
-    media.addEventListener("change", listener);
-    return () => media.removeEventListener("change", listener);
-  }, [query]);
-
-  return matches;
+  return useSyncExternalStore(
+    isBrowser ? subscribe : subscribeNothing,
+    isBrowser ? getSnapshot : notMatched,
+    notMatched
+  );
 };

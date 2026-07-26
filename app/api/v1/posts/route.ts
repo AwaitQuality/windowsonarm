@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
@@ -7,7 +8,9 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { auth, getAuth } from "@clerk/nextjs/server";
 import { createForumThread } from "@/lib/backend/discord";
 import { createPostSchema, PENDING_STATUS_ID } from "@/lib/schemas/post";
-import { lookupClerkUsersByIds } from "@/lib/hooks/useClerkUsersByPostIds";
+import { lookupClerkUsersByIds } from "@/lib/backend/clerk";
+import { handleRouteError } from "@/lib/backend/errors";
+import { isAdminUser } from "@/lib/backend/auth";
 
 
 const POSTS_PER_PAGE = 40; // Number of posts to fetch per batch
@@ -18,18 +21,49 @@ export interface PostsResponse {
   nextCursor: string | null;
 }
 
+/**
+ * Query params come straight from the URL, so a junk value must degrade to
+ * "no filter" instead of failing the request — hence `.catch(undefined)`.
+ */
+const optionalQueryString = z
+  .string()
+  .trim()
+  .min(1)
+  .max(200)
+  .optional()
+  .catch(undefined);
+
+const listPostsQuerySchema = z.object({
+  cursor: optionalQueryString,
+  category: optionalQueryString,
+  search: optionalQueryString,
+  status: z.coerce.number().int().optional().catch(undefined),
+});
+
 export async function GET(request: NextRequest) {
   try {
     const user = getAuth(request);
 
-    const cursor = request.nextUrl.searchParams.get("cursor") || "";
-    const category = request.nextUrl.searchParams.get("category");
-    let status = request.nextUrl.searchParams.get("status");
-    const search = request.nextUrl.searchParams.get("search");
+    // Absent params must arrive as `undefined`, not "" or the literal string
+    // "undefined" the client sometimes sends: `z.coerce.number()` turns both of
+    // those into 0, which is a real status id.
+    const rawParam = (key: string): string | undefined => {
+      const value = request.nextUrl.searchParams.get(key);
+      return !value || value === "undefined" ? undefined : value;
+    };
 
-    if (status === "undefined") {
-      status = null;
-    }
+    const { cursor, category, search, status } = listPostsQuerySchema.parse({
+      cursor: rawParam("cursor"),
+      category: rawParam("category"),
+      search: rawParam("search"),
+      status: rawParam("status"),
+    });
+
+    // Pending submissions are not public. Only an admin explicitly asking for
+    // the review queue may list them; for everyone else the exclusion is always
+    // AND-ed in, so `?status=-1` returns nothing rather than the queue.
+    const canSeePending =
+      status === PENDING_STATUS_ID && (await isAdminUser(user.userId));
 
     const { env } = await getCloudflareContext({ async: true });
 
@@ -41,8 +75,9 @@ export async function GET(request: NextRequest) {
       where: {
         AND: [
           category ? { category: { id: category } } : {},
-          status
-            ? { effective_status_id: parseInt(status) }
+          status !== undefined ? { effective_status_id: status } : {},
+          canSeePending
+            ? {}
             : { effective_status_id: { not: PENDING_STATUS_ID } },
           search
             ? {
@@ -111,29 +146,29 @@ export async function GET(request: NextRequest) {
       posts.length === POSTS_PER_PAGE ? posts[posts.length - 1]?.id : null;
 
     const response: PostsResponse = {
-      category,
+      category: category ?? null,
       posts: postsWithUpvoteStatus,
       nextCursor,
     };
 
     return DataResponse.json(response);
-  } catch (error: any) {
-    return ErrorResponse.json(error.message);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return ErrorResponse.json("Authentication required", { status: 401 });
+    }
+
     const postRequest = await request.json();
 
     // Validate request data
     const validatedData = createPostSchema.parse(postRequest);
-
-    const { userId } = await auth();
-
-    if (!userId) {
-      return ErrorResponse.json("User not found");
-    }
 
     const { env } = await getCloudflareContext({ async: true });
 
@@ -146,7 +181,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (!status) {
-      return ErrorResponse.json("Testing status (-1) not found");
+      // Missing seed data is a server misconfiguration, not a bad request.
+      return ErrorResponse.json("Submissions are unavailable right now", {
+        status: 500,
+      });
     }
 
     const post = await prisma.post.create({
@@ -199,9 +237,8 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create Discord forum thread:", error);
     }
 
-    return DataResponse.json(post);
-  } catch (error: any) {
-    console.error(error);
-    return ErrorResponse.json(error.message);
+    return DataResponse.json(post, { status: 201 });
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }

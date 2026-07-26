@@ -6,13 +6,32 @@ import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import AppDescription from "./app-description";
 import AppSidebar from "./app-sidebar";
-import Reviews from "@/components/post/reviews";
-import ForumMessages from "@/components/post/forum-messages";
-import Giscus from "@giscus/react";
-import { Card } from "@fluentui/react-components";
+import { Card, Skeleton, SkeletonItem } from "@fluentui/react-components";
 
-const GoogleAdsense = dynamic(() => import("@/components/google-adsense"), {
+const SectionPlaceholder = ({ height }: { height: string }) => (
+  <Skeleton className="mb-8">
+    <SkeletonItem style={{ height }} />
+  </Skeleton>
+);
+
+/**
+ * Everything below the description is below the fold and fetches its own data,
+ * so none of it belongs in the initial payload for this route. Giscus in
+ * particular injects its own iframe and cannot render on the server at all.
+ */
+const Reviews = dynamic(() => import("@/components/post/reviews"), {
   ssr: false,
+  loading: () => <SectionPlaceholder height="240px" />,
+});
+
+const ForumMessages = dynamic(() => import("@/components/post/forum-messages"), {
+  ssr: false,
+  loading: () => <SectionPlaceholder height="200px" />,
+});
+
+const Giscus = dynamic(() => import("@giscus/react"), {
+  ssr: false,
+  loading: () => <SectionPlaceholder height="150px" />,
 });
 
 interface AppContentProps {

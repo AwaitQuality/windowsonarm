@@ -1,13 +1,15 @@
 import { NextRequest } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import getPrisma from "@/lib/db/prisma";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getAppById } from "@/lib/api";
 import { recomputeEffectiveStatus } from "@/lib/backend/voting";
-import { updatePostSchema } from "@/lib/schemas/post";
+import { PENDING_STATUS_ID, updatePostSchema } from "@/lib/schemas/post";
 import { sendWebhook } from "@/lib/backend/discord";
+import { handleRouteError } from "@/lib/backend/errors";
+import { isAdminUser, requireAdmin } from "@/lib/backend/auth";
 
 
 export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
@@ -15,37 +17,37 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
   try {
     const post = await getAppById(params.id);
 
+    if (!post) {
+      return ErrorResponse.json("Post not found", { status: 404 });
+    }
+
+    // A pending submission is only visible to the person who submitted it and to
+    // admins. Everyone else gets a 404 so the id itself stays unconfirmed.
+    if (post.effective_status_id === PENDING_STATUS_ID) {
+      const { userId } = await auth();
+      const isSubmitter = !!userId && post.user_id === userId;
+
+      if (!isSubmitter && !(await isAdminUser(userId))) {
+        return ErrorResponse.json("Post not found", { status: 404 });
+      }
+    }
+
     return DataResponse.json(post);
-  } catch (error: any) {
-    console.error("Error fetching post:", error);
-    return ErrorResponse.json(error.message);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }
 
 export async function PUT(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const { userId } = await auth();
+    const admin = await requireAdmin();
 
-    if (!userId) {
-      return ErrorResponse.json("User not found", {
-        status: 401,
-      });
+    if (!admin.ok) {
+      return admin.response;
     }
 
-    const user = await (await clerkClient()).users.getUser(userId);
-
-    if (!user) {
-      return ErrorResponse.json("User not found", {
-        status: 401,
-      });
-    }
-
-    if (user.publicMetadata.role !== "admin") {
-      return ErrorResponse.json("User is not an admin", {
-        status: 401,
-      });
-    }
+    const { user } = admin;
 
     const body = await request.json();
     const validatedData = updatePostSchema.parse(body);
@@ -60,6 +62,10 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
         status: true,
       },
     });
+
+    if (!currentPost) {
+      return ErrorResponse.json("Post not found", { status: 404 });
+    }
 
     const updatedPost = await prisma.post.update({
       where: { id: params.id },
@@ -82,13 +88,15 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
       },
     });
 
+    const statusChanged = currentPost.status_id !== validatedData.status_id;
+
     // An admin status change can invalidate a community-decided status.
-    if (currentPost && currentPost.status_id !== validatedData.status_id) {
+    if (statusChanged) {
       await recomputeEffectiveStatus(prisma, params.id);
     }
 
     // If status has changed, notify Discord
-    if (currentPost && currentPost.status_id !== validatedData.status_id) {
+    if (statusChanged) {
       await sendWebhook(env.DISCORD_WEBHOOK_URL, {
         embeds: [
           {
@@ -120,29 +128,18 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
     }
 
     return DataResponse.json(updatedPost);
-  } catch (error: any) {
-    console.error("Error updating post:", error);
-    return ErrorResponse.json(error.message);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }
 
 export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const { userId } = await auth();
+    const admin = await requireAdmin();
 
-    if (!userId) {
-      return ErrorResponse.json("User not found", {
-        status: 401,
-      });
-    }
-
-    const user = await (await clerkClient()).users.getUser(userId);
-
-    if (!user || user.publicMetadata.role !== "admin") {
-      return ErrorResponse.json("Unauthorized", {
-        status: 401,
-      });
+    if (!admin.ok) {
+      return admin.response;
     }
 
     const { env } = await getCloudflareContext({ async: true });
@@ -153,8 +150,7 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
     });
 
     return DataResponse.json({ success: true });
-  } catch (error: any) {
-    console.error("Error deleting post:", error);
-    return ErrorResponse.json(error.message);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }

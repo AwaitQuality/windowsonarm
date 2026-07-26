@@ -16,11 +16,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  useToastController,
-  Toast,
-  ToastTitle,
-  ToastBody,
-  ToastIntent,
 } from "@fluentui/react-components";
 import {
   CalendarRegular,
@@ -38,7 +33,9 @@ import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { CreateBlogPost } from "@/components/blog/create-blog-post";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { aqApi } from "@/lib/http/client";
+import { useToast } from "@/lib/hooks/useToast";
 import dynamic from "next/dynamic";
 
 const GoogleAdsense = dynamic(() => import("@/components/google-adsense"), {
@@ -74,20 +71,8 @@ export default function BlogPostContent({ post }: BlogPostContentProps) {
   const isAdmin = user?.publicMetadata?.role === "admin";
   const styles = useStyles();
   const router = useRouter();
-  const { dispatchToast } = useToastController();
-
-  const notify = (
-    title: string,
-    subtitle?: string,
-    intent: ToastIntent = "success"
-  ) =>
-    dispatchToast(
-      <Toast>
-        <ToastTitle>{title}</ToastTitle>
-        {subtitle && <ToastBody>{subtitle}</ToastBody>}
-      </Toast>,
-      { intent }
-    );
+  const { notify } = useToast();
+  const queryClient = useQueryClient();
 
   const handleDelete = async () => {
     try {
@@ -95,6 +80,7 @@ export default function BlogPostContent({ post }: BlogPostContentProps) {
       if (response.success) {
         notify("Blog post deleted successfully");
         setIsDeleteDialogOpen(false);
+        await queryClient.invalidateQueries({ queryKey: ["blog-posts"] });
         router.push("/");
       } else {
         notify("Failed to delete blog post", response.error, "error");

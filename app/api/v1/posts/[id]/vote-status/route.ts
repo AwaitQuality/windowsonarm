@@ -9,12 +9,9 @@ import {
   submitterHasImplicitVote,
   tallyVotes,
 } from "@/lib/backend/voting";
+import { statusVoteSchema } from "@/lib/schemas/post";
+import { handleRouteError } from "@/lib/backend/errors";
 
-
-// Add interface for request body
-interface VoteStatusRequest {
-  status_id: number;
-}
 
 export interface VoteStatusResponse {
   votes: { status_id: number; count: number }[];
@@ -58,16 +55,10 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
   try {
     const { userId } = await auth();
     if (!userId) {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
+      return ErrorResponse.json("Authentication required", { status: 401 });
     }
 
-    const body = (await request.json()) as VoteStatusRequest;
-    const { status_id } = body;
-
-    // Validate status_id
-    if (typeof status_id !== "number") {
-      return ErrorResponse.json("Invalid status_id", { status: 400 });
-    }
+    const { status_id } = statusVoteSchema.parse(await request.json());
 
     const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
@@ -115,8 +106,8 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
     await recomputeEffectiveStatus(prisma, params.id);
 
     return DataResponse.json(await buildSummary(prisma, params.id, userId));
-  } catch (error: any) {
-    return ErrorResponse.json(error.message);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }
 
@@ -133,8 +124,8 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
     }
 
     return DataResponse.json(summary);
-  } catch (error: any) {
-    return ErrorResponse.json(error.message);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }
 
@@ -143,7 +134,7 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
   try {
     const { userId } = await auth();
     if (!userId) {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
+      return ErrorResponse.json("Authentication required", { status: 401 });
     }
 
     const { env } = await getCloudflareContext({ async: true });
@@ -162,8 +153,13 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
 
     await recomputeEffectiveStatus(prisma, params.id);
 
-    return DataResponse.json(await buildSummary(prisma, params.id, userId));
-  } catch (error: any) {
-    return ErrorResponse.json(error.message);
+    const summary = await buildSummary(prisma, params.id, userId);
+    if (!summary) {
+      return ErrorResponse.json("Post not found", { status: 404 });
+    }
+
+    return DataResponse.json(summary);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }

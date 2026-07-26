@@ -1,5 +1,5 @@
 import React from "react";
-import { StatusWithPercentage } from "@/app/api/v1/info/route";
+import type { StatusWithPercentage } from "@/app/api/v1/info/route";
 import { cn } from "@/lib/utils";
 
 interface StatisticsBarProps {
@@ -22,9 +22,12 @@ const StatisticsBar: React.FC<StatisticsBarProps> = ({
     <div className="my-4 h-10 w-full">
       <div className="w-full rounded-full flex">
         {out.map((status, index) => (
-          <div
-            key={index}
-            className="group relative flex flex-col gap-2 hover:cursor-pointer hover:transform hover:scale-105 transition-all duration-200 hover:z-10"
+          <button
+            key={status.id}
+            type="button"
+            aria-pressed={selectedStatus === status.id}
+            aria-label={`${status.name} — ${status.percentage}% of total apps`}
+            className="group relative flex flex-col gap-2 text-start hover:cursor-pointer hover:transform hover:scale-105 transition-all duration-200 hover:z-10"
             style={{
               width: `${selectedStatus === null ? status.percentage : 100}%`,
             }}
@@ -33,7 +36,7 @@ const StatisticsBar: React.FC<StatisticsBarProps> = ({
             }
           >
             <div className="flex items-center">
-              <span className="mr-2" style={{ color: status.color }}>
+              <span className="me-2" style={{ color: status.color }}>
                 &#9632;
               </span>
               <span
@@ -56,8 +59,8 @@ const StatisticsBar: React.FC<StatisticsBarProps> = ({
             </div>
             <div
               className={cn(
-                `h-2 pl-2 w-full ${index === 0 ? "rounded-l-full" : ""} ${
-                  index === statuses.length - 1 ? "rounded-r-full" : ""
+                `h-2 ps-2 w-full ${index === 0 ? "rounded-l-full" : ""} ${
+                  index === out.length - 1 ? "rounded-r-full" : ""
                 } ${
                   selectedStatus === status.id ? "rounded-full" : ""
                 } group-hover:h-5`,
@@ -80,7 +83,7 @@ const StatisticsBar: React.FC<StatisticsBarProps> = ({
                 </div>
               )}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

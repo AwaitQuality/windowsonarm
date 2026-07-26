@@ -1,5 +1,18 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import type { User } from "@clerk/nextjs/server";
+import type { ClerkUserSummary } from "@/lib/types/clerk";
+
+/**
+ * Clerk's `User` is a class instance, which React Server Components refuse to
+ * pass to a client component ("Only plain objects ... can be passed"). Every
+ * boundary therefore carries this plain summary instead.
+ */
+export const toClerkUserSummary = (user: User): ClerkUserSummary => ({
+  username:
+    user.username ??
+    (`${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || undefined),
+  imageUrl: user.imageUrl,
+});
 
 const LIMIT = 100;
 
@@ -13,9 +26,9 @@ const dedupe = (ids: (string | null | undefined)[]): string[] =>
  */
 export const lookupClerkUsersByIds = async (
   rawIds: (string | null | undefined)[],
-): Promise<Map<string, User>> => {
+): Promise<Map<string, ClerkUserSummary>> => {
   const ids = dedupe(rawIds);
-  const result = new Map<string, User>();
+  const result = new Map<string, ClerkUserSummary>();
   if (ids.length === 0) return result;
 
   const client = await clerkClient();
@@ -26,11 +39,11 @@ export const lookupClerkUsersByIds = async (
   ]);
 
   for (const user of byId.data) {
-    result.set(user.id, user);
+    result.set(user.id, toClerkUserSummary(user));
   }
   for (const user of byExternal.data) {
     if (user.externalId && !result.has(user.externalId)) {
-      result.set(user.externalId, user);
+      result.set(user.externalId, toClerkUserSummary(user));
     }
   }
 

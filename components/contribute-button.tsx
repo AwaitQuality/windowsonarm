@@ -4,8 +4,10 @@ import {
   Dialog,
   DialogSurface,
   DialogTrigger,
+  Spinner,
 } from "@fluentui/react-components";
 import { AddCircleFilled } from "@fluentui/react-icons";
+import dynamic from "next/dynamic";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { UseQueryResult } from "@tanstack/react-query";
@@ -18,7 +20,22 @@ import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import { CreatePostInput, createPostSchema } from "@/lib/schemas/post";
 import { useFileUpload } from "@/lib/hooks/useFileUpload";
 import { useToast } from "@/lib/hooks/useToast";
-import ContributeForm from "@/components/contribute/ContributeForm";
+
+/**
+ * The dialog body is only ever seen after a click, so it is fetched on first
+ * open rather than shipping with the home page.
+ */
+const ContributeForm = dynamic(
+  () => import("@/components/contribute/ContributeForm"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex justify-center py-12">
+        <Spinner label="Loading form..." />
+      </div>
+    ),
+  },
+);
 
 interface ContributeButtonProps {
   query: UseQueryResult<InfoResponse>;
@@ -94,16 +111,18 @@ const ContributeButton: React.FC<ContributeButtonProps> = ({ query }) => {
       )}
 
       <DialogSurface>
-        <ContributeForm
-          form={form}
-          info={info}
-          onSubmit={onSubmit}
-          onError={onError}
-          onFileSelect={setSelectedFile}
-          submitDisabled={
-            form.formState.isSubmitting || !userId || !sessionId
-          }
-        />
+        {dialogOpen && (
+          <ContributeForm
+            form={form}
+            info={info}
+            onSubmit={onSubmit}
+            onError={onError}
+            onFileSelect={setSelectedFile}
+            submitDisabled={
+              form.formState.isSubmitting || !userId || !sessionId
+            }
+          />
+        )}
       </DialogSurface>
     </Dialog>
   );

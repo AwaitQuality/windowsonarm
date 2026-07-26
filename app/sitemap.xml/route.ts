@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import getPrisma from "@/lib/db/prisma";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { PENDING_STATUS_ID } from "@/lib/schemas/post";
 
 const BASE_URL = "https://windowsonarm.org";
 
@@ -69,6 +70,9 @@ export async function GET() {
     // Get both apps and blog posts
     const [apps, blogPosts] = await Promise.all([
       prisma.post.findMany({
+        // Same visibility rule as the public listing: pending submissions are
+        // deliberately hidden, so they must not be handed to search engines.
+        where: { effective_status_id: { not: PENDING_STATUS_ID } },
         select: { id: true, updated_at: true },
       }),
       prisma.blogPost.findMany({

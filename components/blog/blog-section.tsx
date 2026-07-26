@@ -1,9 +1,19 @@
 import React, { useState } from "react";
 import { Text, Button } from "@fluentui/react-components";
+import dynamic from "next/dynamic";
 import { BlogCard } from "@/components/blog/blog-card";
-import { CreateBlogPost } from "@/components/blog/create-blog-post";
 import { ChevronDownRegular, ChevronUpRegular } from "@fluentui/react-icons";
 import { BlogCardSkeleton } from "./blog-card-skeleton";
+
+/**
+ * Admin-only editor: react-hook-form, zod, the markdown renderer and the file
+ * uploader only ever load for the handful of users who can actually post.
+ */
+const CreateBlogPost = dynamic(
+  () =>
+    import("@/components/blog/create-blog-post").then((m) => m.CreateBlogPost),
+  { ssr: false },
+);
 
 interface BlogPost {
   id: string;
@@ -17,20 +27,6 @@ interface BlogPost {
   author: {
     username?: string;
     imageUrl?: string;
-  };
-}
-
-interface BlogCardProps {
-  post: {
-    id: string;
-    title: string;
-    content: string;
-    image_url?: string | null;
-    created_at: Date;
-    author: {
-      username?: string;
-      imageUrl?: string;
-    };
   };
 }
 

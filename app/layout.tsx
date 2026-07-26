@@ -4,7 +4,8 @@ import type { Metadata, Viewport } from "next";
 import ClientWrapper from "@/app/layoutclient";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import Script from "next/script";
-import AdBlockDetector from "@/components/adblock-detector";
+// Lazy client boundary: keeps the ad-block nag out of the shared bundle.
+import AdBlockDetector from "@/components/adblock-detector-lazy";
 
 export const metadata: Metadata = {
   title: "Windows on ARM | Software Compatibility List",

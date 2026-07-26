@@ -1,11 +1,18 @@
-import { Category, Post, Status, Tag, Upvote } from "@/lib/generated/prisma/client";
-import { User } from "@clerk/nextjs/server";
+import {
+  BlogPost as PrismaBlogPost,
+  Category,
+  Post,
+  Status,
+  Tag,
+  Upvote,
+} from "@/lib/generated/prisma/client";
+import type { ClerkUserSummary } from "@/lib/types/clerk";
 
 export type FullPost = Post & { status: Status | null } & {
   /** Community-decided status when it overrides `status`, otherwise mirrors it. */
   effective_status?: Status | null;
 } & {
-  user: User | null;
+  user: ClerkUserSummary | null;
 } & {
   upvotes?: Upvote[];
 } & {
@@ -21,18 +28,19 @@ export type FullPost = Post & { status: Status | null } & {
   };
 };
 
-export interface BlogPost {
-  id: string;
-  title: string;
-  content: string;
-  image_url?: string | null;
-  published: boolean;
-  author_id: string;
-  created_at: Date;
-  updated_at: Date;
-  description?: string;
-  author?: {
-    username?: string;
-    imageUrl?: string;
-  };
-}
+/**
+ * The single source of truth for a blog post: the Prisma row plus the optional
+ * Clerk author summary the API resolves for it. Derived from the model so a
+ * schema change cannot silently diverge from the client types.
+ */
+export type BlogPost = PrismaBlogPost & {
+  author?: ClerkUserSummary;
+};
+
+/**
+ * A blog post from an endpoint that always resolves the author (`/api/v1/blog`
+ * and `getBlogPostById` both fall back to an "Anonymous" author).
+ */
+export type BlogPostWithAuthor = PrismaBlogPost & {
+  author: ClerkUserSummary;
+};

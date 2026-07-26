@@ -1,47 +1,65 @@
+export interface StatusDistribution {
+  status: string;
+  count: number;
+  percentage: number;
+  color: string;
+}
+
+export interface CategoryDistribution {
+  category: string;
+  count: number;
+  percentage: number;
+}
+
+export interface TagCount {
+  tag: string;
+  count: number;
+}
+
+export interface ActivityCounts {
+  lastDay: number;
+  lastWeek: number;
+  lastMonth: number;
+}
+
+export interface ReviewSummary {
+  averageRating: number;
+  totalReviews: number;
+}
+
+export interface MostReviewedApp {
+  title: string;
+  review_count: number;
+  avg_rating: number;
+}
+
+export interface UpvotedApp {
+  title: string;
+  upvotes: number;
+}
+
+export interface DailyActivity {
+  date: string;
+  count: number;
+}
+
+export interface MostViewedApp {
+  title: string;
+  view_count: number;
+}
+
 export interface StatisticsResponse {
   totalApps: number;
   lastWeekNewApps: number;
-  appsPerStatus: Array<{
-    status: string;
-    count: number;
-    percentage: number;
-    color: string;
-  }>;
-  appsPerCategory: Array<{
-    category: string;
-    count: number;
-    percentage: number;
-  }>;
-  topTags: Array<{
-    tag: string;
-    count: number;
-  }>;
-  recentActivity: {
-    lastDay: number;
-    lastWeek: number;
-    lastMonth: number;
-  };
+  appsPerStatus: StatusDistribution[];
+  appsPerCategory: CategoryDistribution[];
+  topTags: TagCount[];
+  recentActivity: ActivityCounts;
   averageRating: number;
   totalReviews: number;
-  recentReviews: {
-    averageRating: number;
-    totalReviews: number;
-  };
-  mostReviewedApps: Array<{
-    title: string;
-    review_count: number;
-    avg_rating: number;
-  }>;
-  upvoteStats: Array<{
-    title: string;
-    upvotes: number;
-  }>;
-  dailyActivity: Array<{
-    date: string;
-    count: number;
-  }>;
-  mostViewedApps: Array<{
-    title: string;
-    view_count: number;
-  }>;
-} 
+  recentReviews: ReviewSummary;
+  mostReviewedApps: MostReviewedApp[];
+  upvoteStats: UpvotedApp[];
+  dailyActivity: DailyActivity[];
+  mostViewedApps: MostViewedApp[];
+}

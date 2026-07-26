@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { Avatar, Button, TableCellLayout } from "@fluentui/react-components";
 import {
   KeyboardShiftUppercase20Filled,
@@ -15,23 +16,30 @@ interface TitleCellProps {
 }
 
 const TitleCell: React.FC<TitleCellProps> = ({ item, onUpvoteClick }) => {
+  const upvoteCount = item._count?.upvotes ?? 0;
+
   return (
     <TableCellLayout
       media={
-        <div className="flex gap-2">
-          {item.upvotes && (
-            <Button
-              icon={
-                item.userUpvoted ? (
-                  <KeyboardShiftUppercase20Filled />
-                ) : (
-                  <KeyboardShiftUppercase20Regular />
-                )
-              }
-              appearance="transparent"
-              onClick={(e) => onUpvoteClick(e, item)}
-            />
-          )}
+        <div className="flex items-center gap-2">
+          <Button
+            aria-label={
+              item.userUpvoted
+                ? `Remove your upvote from ${item.title}`
+                : `Upvote ${item.title}`
+            }
+            aria-pressed={item.userUpvoted}
+            title={`${upvoteCount} upvote${upvoteCount === 1 ? "" : "s"}`}
+            icon={
+              item.userUpvoted ? (
+                <KeyboardShiftUppercase20Filled />
+              ) : (
+                <KeyboardShiftUppercase20Regular />
+              )
+            }
+            appearance="transparent"
+            onClick={(e) => onUpvoteClick(e, item)}
+          />
           {item.icon_url ? (
             <img
               src={item.icon_url}
@@ -44,7 +52,12 @@ const TitleCell: React.FC<TitleCellProps> = ({ item, onUpvoteClick }) => {
         </div>
       }
     >
-      {item.title}
+      <Link
+        href={`/${item.id}`}
+        className="wrap-break-word hover:underline focus-visible:underline"
+      >
+        {item.title}
+      </Link>
     </TableCellLayout>
   );
 };

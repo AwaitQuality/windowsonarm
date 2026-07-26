@@ -22,10 +22,10 @@ import Navigation from "@/components/navigation";
 import AppTable from "@/components/app-table";
 import InfoSection from "@/components/info-section";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
-import { PostsResponse } from "@/app/api/v1/posts/route";
+import type { PostsResponse } from "@/app/api/v1/posts/route";
 import ContributeButton from "@/components/contribute-button";
 import { DismissRegular } from "@fluentui/react-icons";
-import { usePersistedState } from "@/lib/persisted-state";
+import { usePersistedState } from "@/lib/hooks/use-persisted-state";
 import { useRouter } from "next/navigation";
 import { SiDiscord } from "@icons-pack/react-simple-icons";
 import { useQueryStates, parseAsString } from "nuqs";
@@ -128,6 +128,7 @@ export default function Home() {
           setSelectedStatus={setSelectedStatus}
           setSelectedCategory={setSelectedCategory}
           setSearchBox={setSearchBox}
+          searchValue={searchBox}
         />
 
         <div className="rounded-lg p-4 mb-5 relative overflow-hidden w-full">
@@ -178,10 +179,8 @@ export default function Home() {
           </MessageBar>
         )}
 
-        <AppTable
-          onAppClick={(app) => router.push(`/${app.id}`)}
-          query={query}
-        />
+        {/* Rows navigate via the title link, so no row-level click handler. */}
+        <AppTable query={query} />
       </div>
     </Container>
   );

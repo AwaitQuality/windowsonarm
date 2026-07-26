@@ -29,6 +29,8 @@ import { uploadFileToR2 } from "@/lib/hooks/useFileUpload";
 import { useToast } from "@/lib/hooks/useToast";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
 const formSchema = z.object({
   title: z.string().max(255),
@@ -56,6 +58,8 @@ export default function EditPost({ post, info, className }: EditPostProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const { user } = useUser();
   const { notify } = useToast();
+  const queryClient = useQueryClient();
+  const router = useRouter();
   const isEditable = user?.publicMetadata.role === "admin";
 
   const form = useForm<EditPostRequest>({
@@ -82,9 +86,13 @@ export default function EditPost({ post, info, className }: EditPostProps) {
       const response = await aqApi.put(`/api/v1/posts/${post.id}`, values);
       if (response.success) {
         notify("Post updated successfully");
-        setTimeout(() => {
-          location.reload();
-        }, 2000);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["posts"] }),
+          queryClient.invalidateQueries({ queryKey: ["info"] }),
+        ]);
+        // The post detail page is server-rendered, so the RSC payload has to be
+        // refetched rather than relying on a full reload.
+        router.refresh();
       } else {
         notify("Error updating post", response.error, "error");
       }

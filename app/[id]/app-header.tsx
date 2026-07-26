@@ -41,6 +41,9 @@ export default function AppHeader({ app }: { app: FullPost }) {
               <img
                 src={app.icon_url}
                 alt={`${app.title} icon`}
+                width={64}
+                height={64}
+                decoding="async"
                 className="rounded-md max-w-full max-h-full object-contain h-[64px] w-[64px]"
               />
             </div>

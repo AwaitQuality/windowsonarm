@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   MessageBar,
@@ -12,12 +12,14 @@ import {
   Tab,
   TabList,
 } from "@fluentui/react-components";
-import * as FluentIcons from "@fluentui/react-icons";
 import { DismissRegular, GridDotsRegular } from "@fluentui/react-icons";
 import StatisticsBar from "@/components/ui/statistics-bar";
 import { InfoResponse } from "@/lib/backend/response/info/InfoResponse";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useMediaQuery } from "@/lib/hooks/useMediaQuery";
+import { FluentIcon } from "@/lib/hooks/useFluentIcon";
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface InfoSectionProps {
   query: UseQueryResult<InfoResponse>;
@@ -26,6 +28,8 @@ interface InfoSectionProps {
   setSelectedStatus: (status: number | null) => void;
   setSelectedCategory: (category: string | null) => void;
   setSearchBox: (search: string) => void;
+  /** Current committed search term, so the box stays controlled across back/forward. */
+  searchValue?: string;
 }
 
 const InfoSection: React.FC<InfoSectionProps> = ({
@@ -34,10 +38,10 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   setSelectedStatus,
   setSelectedCategory,
   setSearchBox,
+  searchValue,
   query,
 }) => {
   const isDesktop = useMediaQuery("(min-width: 1300px)");
-  const [selectedValue, setSelectedValue] = useState(selectedCategory || "tab0");
 
   const {
     data: info,
@@ -45,11 +49,50 @@ const InfoSection: React.FC<InfoSectionProps> = ({
     isPending: infoIsPending,
   } = query;
 
-  useEffect(() => {
-    setSelectedValue(selectedCategory || "tab0");
-  }, [selectedCategory]);
+  // Derived straight from the prop — mirroring it into state only risked drift.
+  const selectedValue = selectedCategory || "tab0";
 
-  if (infoIsError) {
+  // `sort` mutates, and `info.categories` is the array react-query has cached,
+  // so it has to be copied before sorting.
+  const sortedCategories = useMemo(
+    () => [...(info?.categories ?? [])].sort((a, b) => a.index - b.index),
+    [info?.categories],
+  );
+
+  // The committed search term is part of the posts query key, so keystrokes are
+  // held locally and only pushed to the URL after a pause.
+  const [searchInput, setSearchInput] = useState(searchValue ?? "");
+  const lastCommittedRef = useRef(searchValue ?? "");
+  const setSearchBoxRef = useRef(setSearchBox);
+
+  // Assigned in an effect, not during render: refs must not be written while
+  // rendering.
+  useEffect(() => {
+    setSearchBoxRef.current = setSearchBox;
+  }, [setSearchBox]);
+
+  useEffect(() => {
+    if (searchValue === undefined) return;
+    if (searchValue !== lastCommittedRef.current) {
+      lastCommittedRef.current = searchValue;
+      setSearchInput(searchValue);
+    }
+  }, [searchValue]);
+
+  useEffect(() => {
+    if (searchInput === lastCommittedRef.current) return;
+
+    const timer = setTimeout(() => {
+      lastCommittedRef.current = searchInput;
+      setSearchBoxRef.current(searchInput);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const [errorDismissed, setErrorDismissed] = useState(false);
+
+  if (infoIsError && !errorDismissed) {
     return (
       <MessageBar>
         <MessageBarBody>
@@ -59,19 +102,20 @@ const InfoSection: React.FC<InfoSectionProps> = ({
         <MessageBarActions
           containerAction={
             <Button
-              aria-label="dismiss"
+              aria-label="Dismiss"
               appearance="transparent"
               icon={<DismissRegular />}
+              onClick={() => setErrorDismissed(true)}
             />
           }
         >
-          <Button onClick={() => window.location.reload()}>Retry</Button>
+          <Button onClick={() => query.refetch()}>Retry</Button>
         </MessageBarActions>
       </MessageBar>
     );
   }
 
-  if (infoIsPending || infoIsPending || !info) {
+  if (infoIsPending || !info) {
     return (
       <Skeleton
         aria-label="Loading Content"
@@ -91,14 +135,13 @@ const InfoSection: React.FC<InfoSectionProps> = ({
   }
 
   const handleCategoryChange = (value: string) => {
-    setSelectedValue(value);
     setSelectedCategory(value === "tab0" ? null : value);
   };
 
   return (
     <>
       <StatisticsBar
-        statuses={info?.status || []}
+        statuses={info.status}
         selectedStatus={selectedStatus}
         setSelectedStatus={setSelectedStatus}
       />
@@ -115,20 +158,17 @@ const InfoSection: React.FC<InfoSectionProps> = ({
             <Tab value="tab0" icon={<GridDotsRegular />}>
               Show all
             </Tab>
-            {info?.categories
-              .sort((a, b) => a.index - b.index)
-              .map((category) => {
-                // @ts-ignore
-                let Icon = FluentIcons[category.icon];
-                if (!Icon) {
-                  Icon = FluentIcons.InfoRegular;
-                }
-                return (
-                  <Tab key={category.id} value={category.id} icon={<Icon />}>
-                    {category.name}
-                  </Tab>
-                );
-              })}
+            {sortedCategories.map((category) => {
+              return (
+                <Tab
+                  key={category.id}
+                  value={category.id}
+                  icon={<FluentIcon name={category.icon} />}
+                >
+                  {category.name}
+                </Tab>
+              );
+            })}
           </TabList>
         ) : (
           <Select
@@ -137,20 +177,19 @@ const InfoSection: React.FC<InfoSectionProps> = ({
             className={"w-full"}
           >
             <option value="tab0">Show all</option>
-            {info?.categories
-              .sort((a, b) => a.index - b.index)
-              .map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
+            {sortedCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
           </Select>
         )}
         <SearchBox
           className={"w-full"}
           placeholder={"Search"}
           style={{ maxWidth: "100%" }}
-          onChange={(_, e) => setSearchBox(e.value)}
+          value={searchInput}
+          onChange={(_, e) => setSearchInput(e.value)}
         />
       </div>
     </>

@@ -1,27 +1,25 @@
-import { Card, Title2 } from "@fluentui/react-components";
+import React from "react";
 import { PersonRegular } from "@fluentui/react-icons";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { StatCard, ChartFrame } from "./StatCard";
+import { CategoryDistribution } from "../types";
 
 interface CategoryDistributionCardProps {
-  appsPerCategory: Array<{
-    category: string;
-    count: number;
-    percentage: number;
-  }>;
+  appsPerCategory: CategoryDistribution[];
 }
 
 export const CategoryDistributionCard: React.FC<
   CategoryDistributionCardProps
 > = ({ appsPerCategory }) => {
+  const totalApps = appsPerCategory.reduce((acc, curr) => acc + curr.count, 0);
+
   return (
-    <Card className="p-6 rounded-lg shadow-md" appearance="filled-alternative">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-orange-500/10 rounded-lg">
-          <PersonRegular className="text-orange-500 text-2xl" />
-        </div>
-        <Title2>Category Distribution</Title2>
-      </div>
-      <div className="h-[300px] w-full">
+    <StatCard
+      title="Category Distribution"
+      iconBackground="bg-orange-500/10"
+      icon={<PersonRegular className="text-orange-500 text-2xl" />}
+    >
+      <ChartFrame>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -32,13 +30,13 @@ export const CategoryDistributionCard: React.FC<
               cy="50%"
               outerRadius={100}
               label={({ name, percent }) =>
-                `${name} ${(percent * 100).toFixed(0)}%`
+                `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
               }
               labelLine={true}
             >
               {appsPerCategory.map((entry, index) => (
                 <Cell
-                  key={`cell-${index}`}
+                  key={entry.category}
                   fill={`hsl(${index * (360 / appsPerCategory.length)}, 70%, 50%)`}
                 />
               ))}
@@ -52,13 +50,15 @@ export const CategoryDistributionCard: React.FC<
               labelStyle={{ color: "#9CA3AF" }}
               itemStyle={{ color: "#9CA3AF" }}
               formatter={(value, name) => [
-                `${value} apps (${(((value as number) / appsPerCategory.reduce((acc, curr) => acc + curr.count, 0)) * 100).toFixed(1)}%)`,
+                `${value} apps (${totalApps === 0 ? "0.0" : (((value as number) / totalApps) * 100).toFixed(1)}%)`,
                 name,
               ]}
             />
           </PieChart>
         </ResponsiveContainer>
-      </div>
-    </Card>
+      </ChartFrame>
+    </StatCard>
   );
 };
+
+export default CategoryDistributionCard;

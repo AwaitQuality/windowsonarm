@@ -11,24 +11,32 @@ import {
 import React, { useState } from "react";
 import { FormDescription, FormItem, FormMessage } from "@/components/ui/form";
 import { Controller } from "react-hook-form";
+import type { Control, FieldPathByValue, FieldValues } from "react-hook-form";
 
-interface _TagPickerProps {
+/**
+ * The concrete form shape the inner picker works against: a single `string[]`
+ * field. Keeping the implementation non-generic is what lets `field.value` be a
+ * real `string[]` instead of an opaque `FieldPathValue<T, TName>`.
+ */
+type TagFieldValues = Record<string, string[]>;
+
+interface TagPickerFieldProps {
   options: string[];
   label: string;
   name: string;
-  formControl: any;
+  formControl: Control<TagFieldValues>;
   shouldUnregister?: boolean;
   description?: string;
 }
 
-const FormTagPicker = ({
+const TagPickerField = ({
   options,
   label,
   name,
   formControl,
   shouldUnregister,
   description,
-}: _TagPickerProps) => {
+}: TagPickerFieldProps) => {
   const [tagPickerOptions, setTagPickerOptions] = useState<string[]>(options);
   const [inputValue, setInputValue] = useState<string>("");
 
@@ -40,6 +48,7 @@ const FormTagPicker = ({
     <Controller
       name={name}
       control={formControl}
+      shouldUnregister={shouldUnregister}
       render={({ field: { onChange, value }, fieldState: { error } }) => (
         <FormItem>
           <Label size={"medium"}>{label}</Label>
@@ -53,14 +62,14 @@ const FormTagPicker = ({
             <TagPickerControl>
               <TagPickerGroup>
                 {value &&
-                  value.map((option: string) => (
+                  value.map((option) => (
                     <Tag key={option} shape="rounded" value={option}>
                       {option}
                     </Tag>
                   ))}
               </TagPickerGroup>
               <TagPickerInput
-                aria-label="Select Employees"
+                aria-label={label}
                 value={inputValue}
                 onChange={(e) => {
                   const newInputValue = e.target.value;
@@ -92,11 +101,46 @@ const FormTagPicker = ({
           </FluentTagPicker>
           {description && <FormDescription>{description}</FormDescription>}
           {error && <FormMessage>{error.message}</FormMessage>}
-          <FormMessage />
         </FormItem>
       )}
     />
   );
 };
+
+/**
+ * The form's fields that hold a list of tags. `| undefined` is part of the
+ * value type because the schemas mark `tags` optional.
+ */
+type TagListPath<T extends FieldValues> = FieldPathByValue<
+  T,
+  string[] | undefined
+>;
+
+interface FormTagPickerProps<T extends FieldValues> {
+  options: string[];
+  label: string;
+  /** Restricted to the form's fields that actually hold a list of tags. */
+  name: TagListPath<T>;
+  formControl: Control<T>;
+  shouldUnregister?: boolean;
+  description?: string;
+}
+
+/**
+ * Thin generic wrapper so callers get field-name and value checking against
+ * their own schema. The single cast is the boundary between the caller's form
+ * type and the concrete `string[]` shape the picker implements.
+ */
+const FormTagPicker = <T extends FieldValues>({
+  formControl,
+  name,
+  ...rest
+}: FormTagPickerProps<T>) => (
+  <TagPickerField
+    {...rest}
+    name={name}
+    formControl={formControl as unknown as Control<TagFieldValues>}
+  />
+);
 
 export default FormTagPicker;

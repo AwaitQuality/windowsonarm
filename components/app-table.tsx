@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Button,
@@ -26,14 +26,15 @@ import {
 import dayjs from "dayjs";
 import { Post } from "@/lib/generated/prisma/client";
 import type { InfiniteData, UseInfiniteQueryResult } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/lib/hooks/useToast";
 import AuthorCell from "@/components/app-table/author-cell";
 import StatusCell from "@/components/app-table/status-cell";
 import TitleCell from "@/components/app-table/title-cell";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
-import { PostsResponse } from "@/app/api/v1/posts/route";
+import type { PostsResponse } from "@/app/api/v1/posts/route";
 import { aqApi } from "@/lib/http/client";
-import { UpvoteRequest } from "@/app/api/v1/posts/upvote/route";
+import type { UpvoteRequest } from "@/app/api/v1/posts/upvote/route";
 
 const GoogleAdsense = dynamic(() => import("./google-adsense"), { ssr: false });
 
@@ -134,10 +135,14 @@ const columns: Column[] = [
 
 interface AppTableProps {
   query: UseInfiniteQueryResult<InfiniteData<PostsResponse>, Error>;
+  /**
+   * @deprecated Rows navigate through the real `<Link>` in the title cell, so
+   * this callback is no longer invoked. Kept so existing callers still compile.
+   */
   onAppClick?: (app: FullPost) => void;
 }
 
-const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
+const AppTable: React.FC<AppTableProps> = ({ query }) => {
   const styles = useStyles();
   const {
     data,
@@ -148,56 +153,104 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
     hasNextPage,
   } = query;
 
-  const [optimisticPosts, setOptimisticPosts] = useState<FullPost[]>([]);
-
   const { notify } = useToast();
+  const queryClient = useQueryClient();
+  const [errorDismissed, setErrorDismissed] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  const posts = useMemo(
+    () => data?.pages.flatMap((page) => page.posts) ?? [],
+    [data],
+  );
+
+  // Infinite scroll: a sentinel below the table avoids reading layout on every
+  // scroll event.
   useEffect(() => {
-    if (data) {
-      setOptimisticPosts(data.pages.flatMap((page) => page.posts));
-    }
-  }, [data]);
+    const sentinel = sentinelRef.current;
+    if (!sentinel || !hasNextPage) return;
 
-  const handleScroll = async () => {
-    const scrollHeight = document.documentElement.scrollHeight;
-    const scrollTop = document.documentElement.scrollTop;
-    const clientHeight = document.documentElement.clientHeight;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { rootMargin: "200px" },
+    );
 
-    if (scrollHeight <= clientHeight && hasNextPage && !isFetchingNextPage) {
-      await fetchNextPage();
-    } else if (
-      scrollTop + clientHeight >= scrollHeight &&
-      hasNextPage &&
-      !isFetchingNextPage
-    ) {
-      await fetchNextPage();
-    }
-  };
-
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [hasNextPage, isFetchingNextPage]);
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleFeatureClick = (e: React.MouseEvent) => {
     e.stopPropagation();
   };
 
-  useEffect(() => {
-    // Load Google AdSense script
-    const script = document.createElement("script");
-    script.src =
-      "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2914289587690478";
-    script.async = true;
-    script.crossOrigin = "anonymous";
-    document.head.appendChild(script);
+  const toggleUpvoteInCache = useCallback(
+    (postId: string) => {
+      queryClient.setQueriesData<InfiniteData<PostsResponse>>(
+        { queryKey: ["posts"] },
+        (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            pages: current.pages.map((page) => ({
+              ...page,
+              posts: page.posts.map((p) =>
+                p.id === postId
+                  ? {
+                      ...p,
+                      userUpvoted: !p.userUpvoted,
+                      _count: {
+                        ...p._count,
+                        upvotes: p._count.upvotes + (p.userUpvoted ? -1 : 1),
+                      },
+                    }
+                  : p,
+              ),
+            })),
+          };
+        },
+      );
+    },
+    [queryClient],
+  );
 
-    return () => {
-      document.head.removeChild(script);
-    };
-  }, []);
+  const upvoteMutation = useMutation({
+    mutationFn: async (post: FullPost) => {
+      const response = await aqApi.post<Post, UpvoteRequest>(
+        "/api/v1/posts/upvote",
+        { postId: post.id },
+      );
+      if (!response.success) throw new Error(response.error);
+      return response.data;
+    },
+    onMutate: async (post: FullPost) => {
+      await queryClient.cancelQueries({ queryKey: ["posts"] });
+      toggleUpvoteInCache(post.id);
+      return { postId: post.id };
+    },
+    onError: (error: Error, post: FullPost) => {
+      // Roll the optimistic flip back.
+      toggleUpvoteInCache(post.id);
+      notify("Failed to upvote", error.message, "error");
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["posts"] });
+    },
+  });
 
-  if (isError) {
+  const { mutate: upvote } = upvoteMutation;
+
+  const onUpvoteClick = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>, post: FullPost) => {
+      e.stopPropagation();
+      upvote(post);
+    },
+    [upvote],
+  );
+
+  if (isError && !errorDismissed) {
     return (
       <MessageBar>
         <MessageBarBody>
@@ -208,58 +261,18 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
         <MessageBarActions
           containerAction={
             <Button
-              aria-label="dismiss"
+              aria-label="Dismiss"
               appearance="transparent"
               icon={<DismissRegular />}
+              onClick={() => setErrorDismissed(true)}
             />
           }
         >
-          <Button onClick={() => window.location.reload()}>Retry</Button>
+          <Button onClick={() => query.refetch()}>Retry</Button>
         </MessageBarActions>
       </MessageBar>
     );
   }
-
-  const onUpvoteClick = async (
-    e: React.MouseEvent<HTMLButtonElement>,
-    post: FullPost
-  ) => {
-    e.stopPropagation();
-
-    // Optimistically update the UI
-    setOptimisticPosts((prevPosts) =>
-      prevPosts.map((p) =>
-        p.id === post.id
-          ? {
-              ...p,
-              userUpvoted: !p.userUpvoted,
-            }
-          : p
-      )
-    );
-
-    const response = await aqApi.post<Post, UpvoteRequest>(
-      "/api/v1/posts/upvote",
-      {
-        postId: post.id,
-      }
-    );
-
-    if (!response.success) {
-      setOptimisticPosts((prevPosts) =>
-        prevPosts.map((p) =>
-          p.id === post.id
-            ? {
-                ...p,
-                userUpvoted: !p.userUpvoted,
-              }
-            : p
-        )
-      );
-
-      notify("Failed to upvote", response.error, "error");
-    }
-  };
 
   const renderCell = (item: FullPost, column: Column) => {
     switch (column.columnKey) {
@@ -285,7 +298,7 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
 
   return (
     <div className={styles.tableContainer}>
-      <Table arial-label="Applications table" className={styles.table}>
+      <Table aria-label="Applications table" className={styles.table}>
         <TableHeader>
           <TableRow>
             {columns.map((column) => (
@@ -350,12 +363,8 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
 
           {/* Regular Rows */}
           {!isPending &&
-            optimisticPosts.map((item) => (
-              <TableRow
-                key={item.id}
-                onClick={() => (onAppClick ? onAppClick(item) : undefined)}
-                className="hover:bg-neutral-50/5"
-              >
+            posts.map((item) => (
+              <TableRow key={item.id} className="hover:bg-neutral-50/5">
                 {columns.map((column) => (
                   <TableCell
                     key={`${item.id}-${column.columnKey}`}
@@ -368,7 +377,9 @@ const AppTable: React.FC<AppTableProps> = ({ query, onAppClick }) => {
             ))}
         </TableBody>
       </Table>
-      {isPending ? (
+      {/* Sentinel observed for infinite scroll. */}
+      <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" />
+      {isPending || isFetchingNextPage ? (
         <ProgressBar thickness="large" />
       ) : (
         hasNextPage && (

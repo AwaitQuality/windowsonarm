@@ -2,10 +2,9 @@
 "use client";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AppProvider } from "@/contexts/AppContext";
 import { Providers } from "@/lib/providers";
 import { ClerkProvider } from "@clerk/nextjs";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Toaster,
   useToastController,
@@ -14,16 +13,27 @@ import {
   ToastBody,
   Button,
 } from "@fluentui/react-components";
-import { usePersistedState } from "@/lib/persisted-state";
-
-const queryClient = new QueryClient();
+import { usePersistedState } from "@/lib/hooks/use-persisted-state";
 
 function ClientWrapper({ children }: { children: React.ReactNode }) {
+  // Created per-mount so cached user-specific data is never shared between
+  // requests/users during SSR.
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60_000,
+            refetchOnWindowFocus: false,
+          },
+        },
+      }),
+  );
   const toasterId = "toaster";
   const { dispatchToast, dismissToast } = useToastController(toasterId);
   const [cookieConsent, setCookieConsent] = usePersistedState(
     "cookieConsent",
-    "false"
+    "false",
   );
 
   useEffect(() => {
@@ -47,22 +57,20 @@ function ClientWrapper({ children }: { children: React.ReactNode }) {
             </Button>
           </ToastBody>
         </Toast>,
-        { intent: "info", timeout: -1, toastId: "cookieConsent" }
+        { intent: "info", timeout: -1, toastId: "cookieConsent" },
       );
     }
   }, [cookieConsent, dispatchToast]);
 
   return (
-    <AppProvider>
-      <ClerkProvider>
-        <Providers>
-          <QueryClientProvider client={queryClient}>
-            <Toaster toasterId={toasterId} />
-            {children}
-          </QueryClientProvider>
-        </Providers>
-      </ClerkProvider>
-    </AppProvider>
+    <ClerkProvider>
+      <Providers>
+        <QueryClientProvider client={queryClient}>
+          <Toaster toasterId={toasterId} />
+          {children}
+        </QueryClientProvider>
+      </Providers>
+    </ClerkProvider>
   );
 }
 

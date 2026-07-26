@@ -6,19 +6,16 @@ import {
 } from "@/components/ui/form";
 import React from "react";
 import { Label, Select } from "@fluentui/react-components";
+import type { FieldValues } from "react-hook-form";
+import type { FormFieldBaseProps } from "@/components/ui/form/input";
 
-interface InputFieldProps {
-  name: string;
-  description?: string;
+interface SelectFieldProps<T extends FieldValues> extends FormFieldBaseProps<T> {
   placeholder?: string;
-  label: string;
-  formControl: any;
-  shouldUnregister?: boolean;
   onValueChange?: (e: string) => void;
   children: React.ReactNode;
 }
 
-const SelectField = (props: InputFieldProps) => (
+const SelectField = <T extends FieldValues>(props: SelectFieldProps<T>) => (
   <FormField
     control={props.formControl}
     name={props.name}

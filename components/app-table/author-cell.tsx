@@ -1,9 +1,9 @@
 import React from "react";
 import { Avatar, TableCellLayout } from "@fluentui/react-components";
-import { User } from "@clerk/nextjs/server";
+import type { ClerkUserSummary } from "@/lib/types/clerk";
 
 interface AuthorCellProps {
-  user: User | null;
+  user: ClerkUserSummary | null;
 }
 
 const AuthorCell: React.FC<AuthorCellProps> = ({ user }) => {

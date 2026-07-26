@@ -5,12 +5,17 @@ export type ApiResponse<T> = {
   data: T;
 };
 
-export type ErrorResponse = {
+/**
+ * The error half of the envelope. Named `ApiErrorResponse` rather than
+ * `ErrorResponse` so it does not collide with the `ErrorResponse` class in
+ * lib/backend/response that produces it.
+ */
+export type ApiErrorResponse = {
   success: false;
   error: string;
 };
 
-export type ApiResult<T> = ApiResponse<T> | ErrorResponse;
+export type ApiResult<T> = ApiResponse<T> | ApiErrorResponse;
 
 type Method = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 

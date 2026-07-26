@@ -6,25 +6,36 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input, Label, Textarea } from "@fluentui/react-components";
+import type { Control, FieldPath, FieldValues } from "react-hook-form";
 
-interface InputFieldProps {
-  name: string;
-  description?: string;
-  placeholder: string;
+/**
+ * Props shared by every field wrapper in this directory.
+ *
+ * Generic in the form's value type so `name` is checked against the schema and
+ * `formControl` cannot be handed the control of a different form.
+ */
+export interface FormFieldBaseProps<T extends FieldValues> {
+  name: FieldPath<T>;
   label: string;
-  required?: boolean;
-  formControl: any;
+  description?: string;
+  formControl: Control<T>;
   shouldUnregister?: boolean;
-  disabled?: boolean;
-  formItemClassName?: string;
   className?: string;
 }
 
-interface InputTextAreaProps extends InputFieldProps {
+export interface InputFieldProps<T extends FieldValues>
+  extends FormFieldBaseProps<T> {
+  placeholder: string;
+  required?: boolean;
+  disabled?: boolean;
+  formItemClassName?: string;
+}
+
+interface InputTextAreaProps<T extends FieldValues> extends InputFieldProps<T> {
   rows?: number;
 }
 
-const InputField = (props: InputFieldProps) => (
+const InputField = <T extends FieldValues>(props: InputFieldProps<T>) => (
   <FormField
     control={props.formControl}
     name={props.name}
@@ -51,7 +62,9 @@ const InputField = (props: InputFieldProps) => (
   />
 );
 
-export const InputTextArea = (props: InputTextAreaProps) => (
+export const InputTextArea = <T extends FieldValues>(
+  props: InputTextAreaProps<T>,
+) => (
   <FormField
     control={props.formControl}
     name={props.name}

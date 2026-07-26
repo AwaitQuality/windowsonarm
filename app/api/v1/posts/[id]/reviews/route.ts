@@ -1,38 +1,36 @@
 import { NextRequest } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import getPrisma from "@/lib/db/prisma";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { z } from "zod";
-import { User } from "@clerk/nextjs/server";
+import type { Review as PrismaReview } from "@/lib/generated/prisma/client";
+import type { Review } from "@/lib/types/review";
+import { PENDING_STATUS_ID } from "@/lib/schemas/post";
+import { handleRouteError } from "@/lib/backend/errors";
+import { isAdminUser } from "@/lib/backend/auth";
+import { lookupClerkUsersByIds } from "@/lib/backend/clerk";
 
 
 const reviewSchema = z.object({
-  rating: z.number().min(1).max(5),
+  rating: z.number().int().min(1).max(5),
   comment: z.string().max(2000).optional(),
 });
 
-interface Review {
-  id: string;
-  post_id: string;
-  user_id: string;
-  rating: number;
-  comment?: string | null;
-  created_at: Date;
-  updated_at: Date;
-  user?: {
-    username?: string;
-    imageUrl?: string;
-  };
-}
+/**
+ * The wire `Review` as it looks before serialisation: same fields, but the
+ * timestamps are still `Date` objects on this side of `DataResponse`.
+ */
+type ReviewPayload = Omit<Review, "created_at" | "updated_at"> &
+  Pick<PrismaReview, "created_at" | "updated_at">;
 
 export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
     const { userId } = await auth();
     if (!userId) {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
+      return ErrorResponse.json("Authentication required", { status: 401 });
     }
 
     const body = await request.json();
@@ -40,6 +38,18 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
 
     const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
+
+    // Confirm the post is reviewable up front, otherwise a bad id surfaces as a
+    // raw foreign-key violation. Pending posts are not public, so nor are their
+    // reviews.
+    const post = await prisma.post.findUnique({
+      where: { id: params.id },
+      select: { effective_status_id: true },
+    });
+
+    if (!post || post.effective_status_id === PENDING_STATUS_ID) {
+      return ErrorResponse.json("Post not found", { status: 404 });
+    }
 
     // Check if user already reviewed this post
     const existingReview = await prisma.review.findFirst({
@@ -59,7 +69,7 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
           updated_at: new Date(),
         },
       });
-      
+
       return DataResponse.json(updatedReview);
     }
 
@@ -73,9 +83,9 @@ export async function POST(request: NextRequest, props: { params: Promise<{ id: 
       },
     });
 
-    return DataResponse.json(review);
-  } catch (error: any) {
-    return ErrorResponse.json(error.message);
+    return DataResponse.json(review, { status: 201 });
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }
 
@@ -89,31 +99,24 @@ export async function GET(request: NextRequest, props: { params: Promise<{ id: s
       where: { post_id: params.id },
       orderBy: { created_at: 'desc' },
     });
-    
-    // Get unique user IDs
-    const userIds = [...new Set(reviews.map(review => review.user_id))];
 
-    // Fetch user information from Clerk
-    const usersResponse = await (await clerkClient()).users.getUserList({
-      userId: userIds,
-    });
-    const users = usersResponse.data;
+    // Resolve authors through the shared Clerk lookup, which dedupes the ids,
+    // skips the call when there are none, and handles legacy externalId refs.
+    const userMap = await lookupClerkUsersByIds(
+      reviews.map((review) => review.user_id)
+    );
 
     // Add user information to reviews
-    const reviewsWithUsers = reviews.map(review => {
-      const user = users.find((u: User) => u.id === review.user_id);
+    const reviewsWithUsers: ReviewPayload[] = reviews.map(review => {
       return {
         ...review,
-        user: user ? {
-          username: user.username || `${user.firstName} ${user.lastName}`.trim(),
-          imageUrl: user.imageUrl,
-        } : undefined,
+        user: userMap.get(review.user_id),
       };
     });
 
     return DataResponse.json(reviewsWithUsers);
-  } catch (error: any) {
-    return ErrorResponse.json(error.message);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }
 
@@ -122,16 +125,16 @@ export async function DELETE(
   request: NextRequest,
   props: { params: Promise<{ id: string }> }
 ) {
+  const params = await props.params;
   try {
-    await props.params;
     const { userId } = await auth();
     if (!userId) {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
+      return ErrorResponse.json("Authentication required", { status: 401 });
     }
 
     const searchParams = new URL(request.url).searchParams;
     const reviewId = searchParams.get('reviewId');
-    
+
     if (!reviewId) {
       return ErrorResponse.json("Review ID is required", { status: 400 });
     }
@@ -139,21 +142,30 @@ export async function DELETE(
     const { env } = await getCloudflareContext({ async: true });
     const prisma = getPrisma(env.DB);
 
-    // Check if user is admin
-    const user = await (await clerkClient()).users.getUser(userId);
-    const isAdmin = user.publicMetadata?.role === 'admin';
+    // Scope the lookup to this post so a review cannot be deleted through an
+    // unrelated post's URL.
+    const review = await prisma.review.findFirst({
+      where: { id: reviewId, post_id: params.id },
+      select: { id: true, user_id: true },
+    });
 
-    if (!isAdmin) {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
+    if (!review) {
+      return ErrorResponse.json("Review not found", { status: 404 });
     }
 
-    // Delete the review
+    // Authors may remove their own review; admins may remove any.
+    if (review.user_id !== userId && !(await isAdminUser(userId))) {
+      return ErrorResponse.json("You cannot delete this review", {
+        status: 403,
+      });
+    }
+
     await prisma.review.delete({
-      where: { id: reviewId },
+      where: { id: review.id },
     });
 
     return DataResponse.json({ success: true });
-  } catch (error: any) {
-    return ErrorResponse.json(error.message);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
-} 
+}

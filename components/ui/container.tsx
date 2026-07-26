@@ -44,4 +44,4 @@ const Container: React.FC<ContainerProps> = ({
   );
 };
 
-export { Container, containerVariants };
+export { Container };

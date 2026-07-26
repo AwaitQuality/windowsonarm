@@ -1,8 +1,14 @@
-import { NextResponse } from "next/server";
-import ErrorResponse from "@/lib/backend/response/ErrorResponse";
+import DataResponse from "@/lib/backend/response/DataResponse";
 import getPrisma from "@/lib/db/prisma";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { handleRouteError } from "@/lib/backend/errors";
 
+
+/** One row per calendar day, bucketed by SQLite rather than in JS. */
+interface DailyPostCountRow {
+  day: string;
+  count: number;
+}
 
 export async function GET() {
   try {
@@ -25,29 +31,26 @@ export async function GET() {
       }),
     ]);
 
-    // Get daily activity for last 30 days
-    const dailyPosts = await prisma.post.groupBy({
-      by: ['created_at'],
-      _count: {
-        id: true,
-      },
-      where: {
-        created_at: {
-          gte: thirtyDaysAgo,
-        },
-      },
-    });
+    // Get daily activity for last 30 days. Grouping on the raw timestamp would
+    // return one row per post, so the day bucket is computed in SQL.
+    const dailyPosts = await prisma.$queryRaw<DailyPostCountRow[]>`
+      SELECT date(created_at) AS day, COUNT(*) AS count
+      FROM "Post"
+      WHERE created_at >= ${thirtyDaysAgo.toISOString()}
+      GROUP BY day
+    `;
+
+    const postCountsByDay = new Map(
+      dailyPosts.map((row) => [row.day, Number(row.count)])
+    );
 
     // Create array of all dates in last 30 days
     const dailyActivityData = Array.from({ length: 30 }, (_, i) => {
       const date = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000);
       const dateStr = date.toISOString().split('T')[0];
-      const postsOnDay = dailyPosts.filter(p => 
-        p.created_at.toISOString().split('T')[0] === dateStr
-      );
       return {
         date: dateStr,
-        count: postsOnDay.reduce((sum, p) => sum + p._count.id, 0),
+        count: postCountsByDay.get(dateStr) ?? 0,
       };
     });
 
@@ -189,35 +192,42 @@ export async function GET() {
       _count: true,
     });
 
-    // Get most reviewed apps
-    const mostReviewedApps = await prisma.post.findMany({
-      select: {
-        title: true,
-        reviews: {
-          select: {
-            rating: true,
-          },
-        },
-        _count: {
-          select: {
-            reviews: true,
-          },
-        },
+    // Get most reviewed apps. The average is aggregated in the database rather
+    // than by pulling every review row back into the worker.
+    const reviewAggregates = await prisma.review.groupBy({
+      by: ['post_id'],
+      _count: {
+        _all: true,
+      },
+      _avg: {
+        rating: true,
       },
       orderBy: {
-        reviews: {
-          _count: 'desc',
+        _count: {
+          post_id: 'desc',
         },
       },
       take: 5,
     });
 
-    const formattedMostReviewedApps = mostReviewedApps.map(app => ({
-      title: app.title,
-      review_count: app._count.reviews,
-      avg_rating: app.reviews.length > 0
-        ? Math.round(app.reviews.reduce((sum, r) => sum + r.rating, 0) / app.reviews.length * 10) / 10
-        : 0,
+    const reviewedPosts = await prisma.post.findMany({
+      where: {
+        id: { in: reviewAggregates.map((aggregate) => aggregate.post_id) },
+      },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+
+    const titlesByPostId = new Map(
+      reviewedPosts.map((post) => [post.id, post.title])
+    );
+
+    const formattedMostReviewedApps = reviewAggregates.map((aggregate) => ({
+      title: titlesByPostId.get(aggregate.post_id) ?? "Unknown app",
+      review_count: aggregate._count._all,
+      avg_rating: Math.round((aggregate._avg.rating ?? 0) * 10) / 10,
     }));
 
     // Get upvote statistics
@@ -243,9 +253,8 @@ export async function GET() {
       upvotes: app._count.upvotes,
     }));
 
-    const response = NextResponse.json({
-      success: true,
-      data: {
+    return DataResponse.json(
+      {
         totalApps,
         lastWeekNewApps,
         dailyActivity: dailyActivityData,
@@ -268,16 +277,14 @@ export async function GET() {
         mostReviewedApps: formattedMostReviewedApps,
         upvoteStats: formattedUpvoteStats,
       },
-    });
-
-    response.headers.set("Cache-Control", "s-maxage=300, stale-while-revalidate");
-
-    return response;
-  } catch (error) {
-    console.error("Error fetching statistics:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to fetch statistics" },
-      { status: 500 }
+      {
+        status: 200,
+        headers: {
+          "Cache-Control": "s-maxage=300, stale-while-revalidate",
+        },
+      }
     );
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }

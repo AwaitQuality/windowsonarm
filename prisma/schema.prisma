@@ -18,7 +18,10 @@ model Post {
   user_id               String?
   status_id             Int          @map("status")
   status_hint           Int?
-  effective_status_id   Int?         @map("effective_status")
+  // Always written on create and by every recompute. Kept non-null because the
+  // public listing filters `{ not: PENDING_STATUS_ID }` and in SQL
+  // `NOT (NULL = -1)` is NULL, which would silently hide the row.
+  effective_status_id   Int          @map("effective_status")
   community_voted       Boolean      @default(false)
   description           String
   tags                  Tag[]
@@ -32,7 +35,9 @@ model Post {
   update_description    String?
   category              Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   status                Status       @relation("PostStatus", fields: [status_id], references: [id])
-  effective_status      Status?      @relation("PostEffectiveStatus", fields: [effective_status_id], references: [id])
+  // Restrict, not SetNull: deleting a Status must not silently unpublish every
+  // post that pointed at it.
+  effective_status      Status       @relation("PostEffectiveStatus", fields: [effective_status_id], references: [id], onDelete: Restrict)
   upvotes               Upvote[]
   reviews               Review[]
   status_votes          StatusVote[]
@@ -40,13 +45,15 @@ model Post {
   upvotes_count         Int          @default(0)
   views_count           Int          @default(0)
 
-  @@index([categoryId])
   @@index([status_id])
-  @@index([effective_status_id])
   @@index([user_id])
   @@index([created_at])
   @@index([upvotes_count])
   @@index([views_count])
+  // Hot listing path: filter on effective_status, order by one of the counters.
+  @@index([effective_status_id, upvotes_count, views_count])
+  // Category filter combined with the public-visibility filter.
+  @@index([categoryId, effective_status_id])
 }
 
 model Tag {
@@ -59,13 +66,16 @@ model Tag {
 }
 
 model Upvote {
-  id      Int     @id @default(autoincrement())
-  user_id String?
-  post_id String?
-  Post    Post?   @relation(fields: [post_id], references: [id])
+  id      Int    @id @default(autoincrement())
+  user_id String
+  post_id String
+  Post    Post   @relation(fields: [post_id], references: [id], onDelete: Cascade)
 
+  // One upvote per user per post: the toggle route relies on this to stay
+  // idempotent under concurrent requests, and upvotes_count drives public
+  // ordering.
+  @@unique([post_id, user_id])
   @@index([user_id])
-  @@index([post_id])
 }
 
 model Status {
@@ -102,7 +112,9 @@ model Review {
   updated_at DateTime @default(now())
   post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
 
-  @@index([post_id])
+  // One review per user per post, so averageRating cannot be skewed by a
+  // double-submit race.
+  @@unique([post_id, user_id])
   @@index([user_id])
 }
 
@@ -116,21 +128,20 @@ model StatusVote {
   status     Status   @relation(fields: [status_id], references: [id])
 
   @@unique([post_id, user_id])
-  @@index([post_id])
   @@index([user_id])
   @@index([status_id])
 }
 
 model View {
-  id         String   @id @default(uuid())
-  post_id    String
-  ip_address String
+  id      String @id @default(uuid())
+  post_id String
+  /// Keyed (HMAC-SHA256) digest of the visitor IP, never the plaintext. Only
+  /// used to deduplicate views via the composite unique below.
+  ip_hash String
   created_at DateTime @default(now())
   post       Post     @relation(fields: [post_id], references: [id], onDelete: Cascade)
 
-  @@unique([post_id, ip_address])
-  @@index([post_id])
-  @@index([ip_address])
+  @@unique([post_id, ip_hash])
 }
 
 model BlogPost {
@@ -146,4 +157,6 @@ model BlogPost {
 
   @@index([author_id])
   @@index([created_at])
+  // Blog index: published posts ordered by date.
+  @@index([published, created_at])
 }

@@ -1,40 +1,38 @@
-import { Card, Title2, Text } from "@fluentui/react-components";
+import React from "react";
+import { Text } from "@fluentui/react-components";
 import { TimerRegular } from "@fluentui/react-icons";
+import { StatCard } from "./StatCard";
+import { ActivityCounts } from "../types";
 
 interface RecentActivityCardProps {
-  recentActivity: {
-    lastDay: number;
-    lastWeek: number;
-    lastMonth: number;
-  };
+  recentActivity: ActivityCounts;
 }
 
-export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({ recentActivity }) => {
+const ROWS: Array<{ label: string; key: keyof ActivityCounts }> = [
+  { label: "Last 24 hours", key: "lastDay" },
+  { label: "Last 7 days", key: "lastWeek" },
+  { label: "Last 30 days", key: "lastMonth" },
+];
+
+export const RecentActivityCard: React.FC<RecentActivityCardProps> = ({
+  recentActivity,
+}) => {
   return (
-    <Card 
-      className="p-6 rounded-lg shadow-md" 
-      appearance="filled-alternative"
+    <StatCard
+      title="Recent Activity"
+      iconBackground="bg-green-500/10"
+      icon={<TimerRegular className="text-green-500 text-2xl" />}
     >
-      <div className="flex items-center gap-3 mb-3">
-        <div className="p-2 bg-green-500/10 rounded-lg">
-          <TimerRegular className="text-green-500 text-2xl" />
-        </div>
-        <Title2>Recent Activity</Title2>
-      </div>
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Text className="text-neutral-400">Last 24 hours</Text>
-          <Text className="text-green-400 font-semibold">{recentActivity.lastDay} updates</Text>
-        </div>
-        <div className="flex items-center justify-between">
-          <Text className="text-neutral-400">Last 7 days</Text>
-          <Text className="text-green-400 font-semibold">{recentActivity.lastWeek} updates</Text>
-        </div>
-        <div className="flex items-center justify-between">
-          <Text className="text-neutral-400">Last 30 days</Text>
-          <Text className="text-green-400 font-semibold">{recentActivity.lastMonth} updates</Text>
-        </div>
+        {ROWS.map(({ label, key }) => (
+          <div key={key} className="flex items-center justify-between">
+            <Text className="text-neutral-400">{label}</Text>
+            <Text className="text-green-400 font-semibold">
+              {recentActivity[key]} updates
+            </Text>
+          </div>
+        ))}
       </div>
-    </Card>
+    </StatCard>
   );
-}; 
+};

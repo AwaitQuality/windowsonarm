@@ -19,6 +19,7 @@ import {
   ProgressBar,
 } from "@fluentui/react-components";
 import { useDiscordForum } from "@/lib/hooks/useDiscordForum";
+import { useAuth } from "@clerk/nextjs";
 import GlobalMarkdown from "@/components/markdown";
 import { SiDiscord } from "@icons-pack/react-simple-icons";
 import {
@@ -71,7 +72,9 @@ interface ForumMessagesProps {
 
 export default function ForumMessages({ postId }: ForumMessagesProps) {
   const classes = useStyles();
-  const { messages, loading, error, discordUrl } = useDiscordForum(postId);
+  const { messages, loading, error, discordUrl, startDiscussion } =
+    useDiscordForum(postId);
+  const { isSignedIn } = useAuth();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleJoinDiscord = () => {
@@ -95,9 +98,55 @@ export default function ForumMessages({ postId }: ForumMessagesProps) {
     );
   }
 
-  if (error) return <Text>Error loading forum messages: {error.message}</Text>;
+  if (error)
+    return (
+      <Card
+        className="rounded-lg shadow-md p-6 mb-8"
+        appearance={"filled-alternative"}
+        size="large"
+      >
+        <Subtitle1>Discussion</Subtitle1>
+        <Text>Error loading forum messages: {error.message}</Text>
+      </Card>
+    );
+
   if (!messages || messages.length === 0)
-    return <Text>No forum messages yet.</Text>;
+    return (
+      <Card
+        className="rounded-lg shadow-md p-6 mb-8"
+        appearance={"filled-alternative"}
+        size="large"
+      >
+        <Subtitle1 className="mb-2">Discussion</Subtitle1>
+        {discordUrl ? (
+          <Text>No forum messages yet.</Text>
+        ) : (
+          <>
+            <Text className="block mb-4">
+              This app doesn&apos;t have a discussion thread yet.
+            </Text>
+            {isSignedIn ? (
+              <Button
+                appearance="primary"
+                disabled={startDiscussion.isPending}
+                onClick={() => startDiscussion.mutate()}
+              >
+                {startDiscussion.isPending
+                  ? "Starting discussion…"
+                  : "Start the discussion"}
+              </Button>
+            ) : (
+              <Text>Sign in to start one.</Text>
+            )}
+            {startDiscussion.isError && (
+              <Text className="block mt-2 text-red-500 wrap-break-word">
+                {startDiscussion.error.message}
+              </Text>
+            )}
+          </>
+        )}
+      </Card>
+    );
 
   return (
     <Card

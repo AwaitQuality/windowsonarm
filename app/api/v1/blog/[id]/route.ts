@@ -1,23 +1,19 @@
 import { NextRequest } from "next/server";
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import ErrorResponse from "@/lib/backend/response/ErrorResponse";
 import DataResponse from "@/lib/backend/response/DataResponse";
 import getPrisma from "@/lib/db/prisma";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { blogPostSchema } from "@/lib/backend/schemas/blog-post";
+import { handleRouteError } from "@/lib/backend/errors";
+import { requireAdmin } from "@/lib/backend/auth";
 
 
 export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
-    }
+    const admin = await requireAdmin();
 
-    const user = await (await clerkClient()).users.getUser(userId);
-    if (user.publicMetadata.role !== "admin") {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
+    if (!admin.ok) {
+      return admin.response;
     }
 
     const { env } = await getCloudflareContext({ async: true });
@@ -28,22 +24,18 @@ export async function DELETE(request: NextRequest, props: { params: Promise<{ id
     });
 
     return DataResponse.json({ success: true });
-  } catch (error: any) {
-    return ErrorResponse.json(error.message);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
 }
 
 export async function PUT(request: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   try {
-    const { userId } = await auth();
-    if (!userId) {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
-    }
+    const admin = await requireAdmin();
 
-    const user = await (await clerkClient()).users.getUser(userId);
-    if (user.publicMetadata.role !== "admin") {
-      return ErrorResponse.json("Unauthorized", { status: 401 });
+    if (!admin.ok) {
+      return admin.response;
     }
 
     const body = await request.json();
@@ -61,7 +53,7 @@ export async function PUT(request: NextRequest, props: { params: Promise<{ id: s
     });
 
     return DataResponse.json(post);
-  } catch (error: any) {
-    return ErrorResponse.json(error.message);
+  } catch (error: unknown) {
+    return handleRouteError(error);
   }
-} 
+}

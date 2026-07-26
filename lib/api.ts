@@ -1,10 +1,85 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { FullPost } from "@/lib/types/prisma/prisma-types";
 import getPrisma from "@/lib/db/prisma";
+import { lookupClerkUsersByIds } from "@/lib/backend/clerk";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { headers } from "next/headers";
 
 import { cache } from "react";
+
+/**
+ * Keyed digest of a visitor IP. The View table only ever needs to answer "has
+ * this visitor already been counted for this post", which a stable hash does
+ * just as well as the plaintext -- and an unkeyed hash would not be enough,
+ * because the whole IPv4 space is small enough to enumerate.
+ */
+const hashIp = async (ip: string, secret: string): Promise<string> => {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const mac = await crypto.subtle.sign("HMAC", key, encoder.encode(ip));
+
+  return Array.from(new Uint8Array(mac))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+};
+
+/**
+ * Records one view per visitor per post and re-derives the counter from the rows
+ * that exist. Both statements go out as a single D1 batch, since D1 has no
+ * interactive transactions.
+ */
+const recordView = async (
+  prisma: ReturnType<typeof getPrisma>,
+  postId: string
+): Promise<void> => {
+  const secret = process.env.VIEW_IP_HASH_SECRET;
+
+  if (!secret) {
+    // Fail closed: writing an unkeyed or plaintext value would reintroduce the
+    // per-visitor browsing history this hash exists to avoid.
+    console.warn(
+      "VIEW_IP_HASH_SECRET is not set; skipping view tracking for this request."
+    );
+    return;
+  }
+
+  const headersList = await headers();
+  // cf-connecting-ip is set by Cloudflare's edge and cannot be spoofed by the
+  // client. x-forwarded-for / x-real-ip are caller-supplied and were trivially
+  // rotated to inflate views_count, which drives public ordering.
+  const ip = headersList.get("cf-connecting-ip") || "unknown";
+  const ip_hash = await hashIp(ip, secret);
+
+  try {
+    await prisma.$transaction([
+      prisma.view.create({ data: { post_id: postId, ip_hash } }),
+      prisma.$executeRaw`
+        UPDATE "Post"
+        SET "views_count" = (
+          SELECT COUNT(*) FROM "View" WHERE "View"."post_id" = ${postId}
+        )
+        WHERE "Post"."id" = ${postId}
+      `,
+    ]);
+  } catch (error: unknown) {
+    const code: unknown =
+      typeof error === "object" && error !== null
+        ? Reflect.get(error, "code")
+        : undefined;
+
+    // P2002: this visitor is already counted for this post. Expected, not an
+    // error, and the counter must not move.
+    if (code !== "P2002") {
+      console.error("Unexpected error while recording a view:", error);
+    }
+  }
+};
 
 export const getAppById = cache(
   async (
@@ -16,48 +91,8 @@ export const getAppById = cache(
   const prisma = getPrisma(env.DB);
 
   try {
-    // Track view
-    const headersList = await headers();
-    const ip =
-      headersList.get("x-forwarded-for") ||
-      headersList.get("x-real-ip") ||
-      "unknown";
-
     if (logView) {
-      try {
-        // 1. First, attempt to create the unique view record.
-        // This will throw an error if the ip_address has already viewed this post_id.
-        await prisma.view.create({
-          data: {
-            post_id: id,
-            ip_address: ip, // The viewer's IP address
-          },
-        });
-
-        // 2. If the above line does NOT throw an error, it means the view was unique.
-        // Now, we can safely increment our fast counter.
-        await prisma.post.update({
-          where: { id: id },
-          data: {
-            views_count: {
-              increment: 1,
-            },
-          },
-        });
-      } catch (e: any) {
-        // 3. If an error occurs, check if it's the expected "unique constraint violation" error.
-        if (e?.code === "P2002") {
-          // This is a duplicate view. It's expected behavior, not an actual error.
-          // We simply do nothing, because the view is not unique and the counter should not be incremented.
-        } else {
-          // It was some other, unexpected database error.
-          // You should log this for debugging.
-          console.error(
-            "An unexpected error occurred while recording a view:",
-            e
-          );
-        }
-      }
+      await recordView(prisma, id);
     }
 
     const post = await prisma.post.findUnique({
@@ -75,12 +110,6 @@ export const getAppById = cache(
             }
           : false,
         category: true,
-        _count: {
-          select: {
-            upvotes: true,
-            views: true, // Include view count
-          },
-        },
       },
     });
 
@@ -90,26 +119,20 @@ export const getAppById = cache(
 
     let fullPost: FullPost = {
       ...post,
-      userUpvoted: post.upvotes?.length > 0,
+      // Read from the denormalised counters, not a live `_count`. The listing
+      // orders by these columns, so serving live counts here let a post rank
+      // above another while displaying a lower number. It also drops two
+      // correlated subqueries from every post page.
+      _count: { upvotes: post.upvotes_count, views: post.views_count },
+      userUpvoted: (post.upvotes?.length ?? 0) > 0,
       user: null,
     };
 
     if (post.user_id) {
-      const user = await (await clerkClient()).users.getUserList({
-        userId: [post.user_id],
-      });
-
-      if (user.data.length > 0) {
-        fullPost.user = user.data[0];
-      }
-
-      const externalId = await (await clerkClient()).users.getUserList({
-        externalId: [post.user_id],
-      });
-
-      if (externalId.data.length > 0) {
-        fullPost.user = externalId.data[0];
-      }
+      // Plain summary, not Clerk's User class: this object crosses the RSC
+      // boundary into client components.
+      const users = await lookupClerkUsersByIds([post.user_id]);
+      fullPost.user = users.get(post.user_id) ?? null;
     }
 
     return fullPost;

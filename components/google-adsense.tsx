@@ -2,9 +2,15 @@
 
 import React, { useEffect } from "react";
 
+/**
+ * The AdSense loader replaces this array with its own queue object; pushing a
+ * config record onto it is the documented way to request a slot render.
+ */
+type AdsByGoogleQueue = Array<Record<string, unknown>>;
+
 declare global {
   interface Window {
-    adsbygoogle: any[];
+    adsbygoogle: AdsByGoogleQueue;
   }
 }
 

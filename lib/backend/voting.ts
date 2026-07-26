@@ -1,8 +1,5 @@
 import type { PrismaClient } from "@/lib/generated/prisma/client";
-import {
-  COMMUNITY_VOTE_THRESHOLD,
-  PENDING_STATUS_ID,
-} from "@/lib/schemas/post";
+import { COMMUNITY_VOTE_THRESHOLD } from "@/lib/schemas/post";
 
 export interface VoteTally {
   status_id: number;
@@ -20,6 +17,27 @@ interface VoteRow {
   status_id: number;
 }
 
+/**
+ * The submitter's initial `status_hint` stands in as their vote until they cast
+ * an explicit one. Returns the status it counts towards, or null when there is
+ * no implicit vote.
+ *
+ * This is the single definition of that rule: the tally and the
+ * `submitterImplicitVote` flag the API reports must never disagree about it.
+ */
+export const submitterImplicitVote = (
+  post: { user_id: string | null; status_hint: number | null },
+  votes: VoteRow[]
+): number | null => {
+  if (post.status_hint == null || !post.user_id) return null;
+  return votes.some((v) => v.user_id === post.user_id) ? null : post.status_hint;
+};
+
+export const submitterHasImplicitVote = (
+  post: { user_id: string | null; status_hint: number | null },
+  votes: VoteRow[]
+): boolean => submitterImplicitVote(post, votes) !== null;
+
 export const tallyVotes = (
   votes: VoteRow[],
   submitterId: string | null,
@@ -31,30 +49,25 @@ export const tallyVotes = (
     counts.set(vote.status_id, (counts.get(vote.status_id) ?? 0) + 1);
   }
 
-  // The submitter's initial status_hint counts as their implicit vote, unless
-  // they have since cast an explicit one.
-  if (statusHint != null && submitterId) {
-    const hasExplicitVote = votes.some((v) => v.user_id === submitterId);
-    if (!hasExplicitVote) {
-      counts.set(statusHint, (counts.get(statusHint) ?? 0) + 1);
-    }
+  const implicit = submitterImplicitVote(
+    { user_id: submitterId, status_hint: statusHint },
+    votes
+  );
+  if (implicit !== null) {
+    counts.set(implicit, (counts.get(implicit) ?? 0) + 1);
   }
 
+  // status_id breaks ties. Sorting on count alone leaves equal-count tallies in
+  // Map insertion order, i.e. whatever order D1 happened to return the vote
+  // rows in, which let the effective status flip between recomputes with no new
+  // votes cast.
   return Array.from(counts.entries())
     .map(([status_id, count]) => ({ status_id, count }))
-    .sort((a, b) => b.count - a.count);
-};
-
-export const submitterHasImplicitVote = (
-  post: { user_id: string | null; status_hint: number | null },
-  votes: VoteRow[]
-): boolean => {
-  if (post.status_hint == null || !post.user_id) return false;
-  return !votes.some((v) => v.user_id === post.user_id);
+    .sort((a, b) => b.count - a.count || a.status_id - b.status_id);
 };
 
 export interface EffectiveStatusResult {
-  effective_status_id: number | null;
+  effective_status_id: number;
   community_voted: boolean;
   winning?: VoteTally;
 }
@@ -64,14 +77,21 @@ export const computeEffectiveStatus = (
   votes: VoteRow[]
 ): EffectiveStatusResult => {
   const tallies = tallyVotes(votes, post.user_id, post.status_hint);
-  const winning = tallies.find((t) => t.count >= COMMUNITY_VOTE_THRESHOLD);
+  const [leader, runnerUp] = tallies;
 
-  // A community-decided status wins when it disagrees with the stored status.
-  if (winning && winning.status_id !== post.status_id) {
+  // Overriding the admin-set status takes the threshold *and* a strict
+  // plurality. A tied leader is not a community decision, and honouring one
+  // would make the outcome depend on which side of the tie sorted first.
+  const decided =
+    leader !== undefined &&
+    leader.count >= COMMUNITY_VOTE_THRESHOLD &&
+    (runnerUp === undefined || leader.count > runnerUp.count);
+
+  if (decided && leader.status_id !== post.status_id) {
     return {
-      effective_status_id: winning.status_id,
+      effective_status_id: leader.status_id,
       community_voted: true,
-      winning,
+      winning: leader,
     };
   }
 
@@ -80,10 +100,16 @@ export const computeEffectiveStatus = (
   return { effective_status_id: post.status_id, community_voted: false };
 };
 
+/**
+ * Recomputes and persists a post's effective status.
+ *
+ * Returns null when the post no longer exists, so a caller can tell that apart
+ * from a real result instead of being handed a fabricated one.
+ */
 export const recomputeEffectiveStatus = async (
   prisma: PrismaClient,
   postId: string
-): Promise<EffectiveStatusResult> => {
+): Promise<EffectiveStatusResult | null> => {
   const post = await prisma.post.findUnique({
     where: { id: postId },
     select: {
@@ -95,7 +121,7 @@ export const recomputeEffectiveStatus = async (
   });
 
   if (!post) {
-    return { effective_status_id: null, community_voted: false };
+    return null;
   }
 
   const result = computeEffectiveStatus(post, post.status_votes);

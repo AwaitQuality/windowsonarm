@@ -34,6 +34,8 @@ import { useToast } from "@/lib/hooks/useToast";
 import StatusVote from "@/components/post/status-vote";
 import EditPost from "@/components/post/edit-post";
 import dynamic from "next/dynamic";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
 const GoogleAdsense = dynamic(() => import("@/components/google-adsense"), {
   ssr: false,
@@ -48,6 +50,8 @@ export default function AppSidebar({ app, info }: AppSidebarProps) {
   const { user } = useUser();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { notify } = useToast();
+  const queryClient = useQueryClient();
+  const router = useRouter();
   const isEditable = user?.publicMetadata.role === "admin";
 
   const handleDelete = async () => {
@@ -56,9 +60,11 @@ export default function AppSidebar({ app, info }: AppSidebarProps) {
 
       if (response.success) {
         notify("Post deleted successfully");
-        setTimeout(() => {
-          window.location.href = "/";
-        }, 1000);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["posts"] }),
+          queryClient.invalidateQueries({ queryKey: ["info"] }),
+        ]);
+        router.push("/");
       } else {
         notify("Error deleting post", response.error, "error");
       }

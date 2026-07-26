@@ -29,7 +29,9 @@ const FileUploader: React.FC<FileUploaderProps> = ({ onFileSelect }) => {
         onChange={handleFileChange}
         className="hidden"
         ref={fileInputRef}
-        accept="image/*"
+        // Must match the upload route's allowlist; `image/*` would let the user
+        // pick a file the API then rejects with a 400.
+        accept="image/png,image/jpeg,image/webp"
       />
       <Button onClick={handleSelectFile}>
         <Upload className="mr-2 h-4 w-4" /> Select Icon
