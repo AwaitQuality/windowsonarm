@@ -1,6 +1,20 @@
 -- Migration number: 0010 	 2026-07-26T06:28:35.842Z
 -- Generated with: prisma migrate diff --from-local-d1 --to-schema-datamodel ./prisma/schema.prisma --script
 
+-- Rebuilding "Post" means DROP TABLE "Post", which fires ON DELETE CASCADE on
+-- every child table (View, Review, StatusVote, Upvote, _PostToTag). On D1 the
+-- PRAGMAs below do not reliably suppress that, so the child rows are snapshotted
+-- first and restored afterwards. This was found the hard way: the original
+-- version of this migration emptied 331k View rows plus every review, status
+-- vote and post/tag link on production, because the database it was verified
+-- against happened to have those tables empty.
+
+CREATE TABLE "_mig0010_Upvote"     AS SELECT * FROM "Upvote";
+CREATE TABLE "_mig0010_Review"     AS SELECT * FROM "Review";
+CREATE TABLE "_mig0010_StatusVote" AS SELECT * FROM "StatusVote";
+CREATE TABLE "_mig0010_View"       AS SELECT * FROM "View";
+CREATE TABLE "_mig0010_PostToTag"  AS SELECT * FROM "_PostToTag";
+
 -- RedefineTables
 PRAGMA defer_foreign_keys=ON;
 PRAGMA foreign_keys=OFF;
@@ -42,6 +56,20 @@ CREATE INDEX "Post_views_count_idx" ON "Post"("views_count");
 PRAGMA foreign_keys=ON;
 PRAGMA defer_foreign_keys=OFF;
 
+
+-- Restore anything the cascade took. INSERT OR IGNORE so this is a no-op when
+-- the rows survived.
+INSERT OR IGNORE INTO "Upvote"     SELECT * FROM "_mig0010_Upvote";
+INSERT OR IGNORE INTO "Review"     SELECT * FROM "_mig0010_Review";
+INSERT OR IGNORE INTO "StatusVote" SELECT * FROM "_mig0010_StatusVote";
+INSERT OR IGNORE INTO "View"       SELECT * FROM "_mig0010_View";
+INSERT OR IGNORE INTO "_PostToTag" SELECT * FROM "_mig0010_PostToTag";
+
+DROP TABLE "_mig0010_Upvote";
+DROP TABLE "_mig0010_Review";
+DROP TABLE "_mig0010_StatusVote";
+DROP TABLE "_mig0010_View";
+DROP TABLE "_mig0010_PostToTag";
 
 -- Backfill: existing posts inherit their admin-set status as the effective status.
 UPDATE "Post" SET "effective_status" = "status";
