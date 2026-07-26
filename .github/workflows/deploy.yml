@@ -60,17 +60,39 @@ jobs:
           # cf:build already produced .open-next; do not let the action rebuild.
           command: deploy
 
-      - name: Smoke test the deployed site
+      # Verifies the Worker on its own hostname. The production domain runs Bot
+      # Fight Mode, which 403s a CI runner regardless of headers, so the checks
+      # are split: workers.dev must return 200, and the real domain must merely
+      # not be returning 5xx. Each path is requested three times, because the
+      # sitemap bug this pipeline was written after only appeared on the second
+      # request, once the cache was warm.
+      - name: Smoke test the deployed Worker
+        env:
+          WORKER_URL: https://windowsonarm-cf.opensourceexpress.workers.dev
         run: |
           set -euo pipefail
           sleep 10
           for path in / /statistics /sitemap.xml /api/v1/info /api/v1/posts; do
             for attempt in 1 2 3; do
-              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "https://windowsonarm.org${path}?ci=${GITHUB_SHA}${attempt}")
-              echo "${path} attempt ${attempt}: ${code}"
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "${WORKER_URL}${path}?ci=${GITHUB_SHA}${attempt}")
+              echo "worker ${path} attempt ${attempt}: ${code}"
               if [ "$code" != "200" ]; then
-                echo "::error::${path} returned ${code} after deploy"
+                echo "::error::${path} returned ${code} on the deployed Worker"
                 exit 1
               fi
             done
+          done
+
+      - name: Check the production domain is not erroring
+        run: |
+          set -euo pipefail
+          for path in / /api/v1/posts /sitemap.xml; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 \
+              -H 'User-Agent: Mozilla/5.0 (compatible; windowsonarm-ci)' \
+              "https://windowsonarm.org${path}?ci=${GITHUB_SHA}")
+            echo "production ${path}: ${code}"
+            case "$code" in
+              5*) echo "::error::production ${path} returned ${code}"; exit 1 ;;
+              403) echo "  (403 = Bot Fight Mode blocking the runner, not an app failure)" ;;
+            esac
           done

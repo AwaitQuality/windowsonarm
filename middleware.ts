@@ -29,6 +29,14 @@ const isProtectedApiRoute = createRouteMatcher([
 const SAFE_METHODS = new Set(["GET", "HEAD"]);
 
 export default clerkMiddleware(async (auth, request) => {
+  // The Worker also answers on its workers.dev hostname, which CI uses to verify
+  // a deploy. That copy must never be indexed alongside windowsonarm.org.
+  if (request.nextUrl.hostname.endsWith(".workers.dev")) {
+    const response = NextResponse.next();
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
+  }
+
   if (SAFE_METHODS.has(request.method) || !isProtectedApiRoute(request)) {
     return;
   }
