@@ -6,6 +6,17 @@ import { unstable_cache } from "next/cache";
 
 const BASE_URL = "https://windowsonarm.org";
 
+/**
+ * ISO strings, not Date objects. `unstable_cache` serialises its result, so a
+ * Date survives the first (uncached) call and comes back as a string on every
+ * cache hit — calling .toISOString() on it then throws, which is exactly how
+ * this route started returning 500 once the cache was warm.
+ */
+interface SitemapEntry {
+  id: string;
+  updated_at: string;
+}
+
 // Rendered per request rather than frozen at build time, so posts added since
 // the last deploy appear. The database work itself is cached below, so "dynamic"
 // costs a Worker invocation, not a table scan.
@@ -13,8 +24,8 @@ export const dynamic = "force-dynamic";
 
 
 function generateSiteMap(
-  apps: { id: string; updated_at: Date }[],
-  blogPosts: { id: string; updated_at: Date }[]
+  apps: SitemapEntry[],
+  blogPosts: SitemapEntry[]
 ) {
   return `<?xml version="1.0" encoding="UTF-8"?>
    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -43,7 +54,7 @@ function generateSiteMap(
            <loc>${BASE_URL}/${id}</loc>
            <priority>0.8</priority>
             <changefreq>daily</changefreq>
-            <lastmod>${updated_at.toISOString()}</lastmod>
+            <lastmod>${updated_at}</lastmod>
        </url>
      `;
        })
@@ -55,7 +66,7 @@ function generateSiteMap(
            <loc>${BASE_URL}/blog/${id}</loc>
            <priority>0.9</priority>
             <changefreq>weekly</changefreq>
-            <lastmod>${updated_at.toISOString()}</lastmod>
+            <lastmod>${updated_at}</lastmod>
        </url>
      `;
        })
@@ -87,7 +98,15 @@ const getSitemapEntries = unstable_cache(
       }),
     ]);
 
-    return { apps, blogPosts };
+    const toEntries = (
+      rows: { id: string; updated_at: Date }[]
+    ): SitemapEntry[] =>
+      rows.map(({ id, updated_at }) => ({
+        id,
+        updated_at: updated_at.toISOString(),
+      }));
+
+    return { apps: toEntries(apps), blogPosts: toEntries(blogPosts) };
   },
   ["sitemap-entries"],
   { revalidate: 3600 }
